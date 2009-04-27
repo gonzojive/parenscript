@@ -228,7 +228,7 @@ Syntax of key spec:
 "
   (let* ((var (cond ((symbolp key-spec) key-spec)
                     ((and (listp key-spec) (symbolp (first key-spec))) (first key-spec))
-                    ((and (listp key-spec) (listp (first key-spec)))   (second key-spec))))
+                    ((and (listp key-spec) (listp (first key-spec)))   (second (first key-spec)))))
          (keyword-name (if (and (listp key-spec) (listp (first key-spec)))
                            (first (first key-spec))
                            (intern (string var) :keyword)))
@@ -291,10 +291,10 @@ the given lambda-list and body."
                   (with-ps-gensyms (n)
                     (let ((decls nil) (assigns nil) (defaults nil))
                       (mapc (lambda (k)
-                              (multiple-value-bind (var init-form keyword-str)
+                              (multiple-value-bind (var init-form keyword-name)
                                   (parse-key-spec k)
                                 (push `(var ,var) decls)
-                                (push `(,keyword-str (setf ,var (aref arguments (1+ ,n)))) assigns)
+                                (push `(',keyword-name (setf ,var (aref arguments (1+ ,n)))) assigns)
                                 (push (list 'defaultf var init-form) defaults)))
                             (reverse keys))
                       `(,@decls
@@ -302,13 +302,14 @@ the given lambda-list and body."
                            :below (length arguments) :by 2 :do
                            (case (aref arguments ,n) ,@assigns))
                         ,@defaults)))
-                  (mapcar (lambda (k)
-                            (multiple-value-bind (var init-form keyword-str)
-                                (parse-key-spec k)
-                              (with-ps-gensyms (x)
-                                `(let ((,x ((@ *Array prototype index-of call) arguments ,keyword-str ,(length requireds))))
-                                   (var ,var (if (= -1 ,x) ,init-form (aref arguments (1+ ,x))))))))
-                          keys))))
+		  (progn
+		    (mapcar (lambda (k)
+			      (multiple-value-bind (var init-form keyword-name)
+				  (parse-key-spec k)
+				(with-ps-gensyms (x)
+				  `(let ((,x ((@ *Array prototype index-of call) arguments ',keyword-name ,(length requireds))))
+				     (var ,var (if (= -1 ,x) ,init-form (aref arguments (1+ ,x))))))))
+			    keys)))))
            (rest-form
             (if rest?
                 (with-ps-gensyms (i)
@@ -730,3 +731,19 @@ lambda-list::=
   ;; (ps (foo (lisp bar))) is in effect equivalent to (ps* `(foo ,bar))
   ;; when called from inside of ps*, lisp-form has access only to the dynamic environment (like for eval)
   `(js:escape (ps1* ,lisp-form)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; eval-when
+(define-ps-special-form eval-when (situation-list &body body)
+  "(eval-when (situation*) body-form*)
+
+The body forms are evaluated only during the given SITUATION. The accepted SITUATIONS are
+:load-toplevel, :compile-toplevel, and :execute.  The code in BODY-FORM is assumed to be
+COMMON-LISP code in :compile-toplevel and :load-toplevel sitations, and parenscript code in
+:execute.  "
+  (when (and (member :compile-toplevel situation-list)
+	     (member *toplevel-compilation-level* '(:toplevel :inside-toplevel-form)))
+    (eval `(progn ,@body)))
+  (if (member :execute situation-list)
+      (compile-parenscript-form `(progn ,@body) :expecting expecting)
+      (compile-parenscript-form `(progn) :expecting expecting)))
