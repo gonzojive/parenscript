@@ -1129,3 +1129,43 @@ x1 - x1;
 --x1;
 ++x1;")
 
+(test-ps-js eval-when-ps-side
+  (eval-when (:execute)
+    5)
+  "5;")
+
+(defvar *lisp-output* nil)
+
+(test eval-when-lisp-side ()
+    (setf *lisp-output* 'original-value)
+    (let ((js-output (normalize-js-code 
+		      (ps-doc* `(eval-when (:compile-toplevel)
+				  (setf *lisp-output* 'it-works))))))
+      (is (eql 'it-works *lisp-output*))
+      (is (string= "" js-output))))
+
+(defpsmacro my-in-package (package-name)
+  `(eval-when (:compile-toplevel)
+     (setf *lisp-output* ,package-name)))
+
+(test eval-when-macro-expansion ()
+    (setf *lisp-output* 'original-value)
+    (let ((js-output (normalize-js-code 
+		      (ps-doc* `(progn
+				  (my-in-package :cl-user)
+				  3)))))
+      (declare (ignore js-output))
+      (is (eql :cl-user *lisp-output*))))
+      ;(is (string= "" js-output))))
+
+(test eval-when-macrolet-expansion ()
+    (setf *lisp-output* 'original-value)
+    (let ((js-output (normalize-js-code 
+		      (ps-doc* `(macrolet ((my-in-package2 (package-name)
+					     `(eval-when (:compile-toplevel)
+						(setf *lisp-output* ,package-name))))
+				  (my-in-package2 :cl-user)
+				  3)))))
+      (declare (ignore js-output))
+      (is (eql :cl-user *lisp-output*))))
+      ;(is (string= "" js-output))))
