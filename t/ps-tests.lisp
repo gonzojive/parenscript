@@ -455,7 +455,7 @@ __setf_someThing(_js1, _js2, _js3);")
     var _js2 = arguments.length;
     for (var n1 = 0; n1 < _js2; n1 += 2) {
         switch (arguments[n1]) {
-        case 'my-name-key':
+        case 'myNameKey':
             {
                 myName = arguments[n1 + 1];
             };
@@ -1169,3 +1169,19 @@ x1 - x1;
       (declare (ignore js-output))
       (is (eql :cl-user *lisp-output*))))
       ;(is (string= "" js-output))))
+
+(test-ps-js keyword-conversion1
+  :alpha-omega
+  "'alphaOmega';")
+
+(test-ps-js keyword-conversion2
+ (slot-value object :alpha-omega)
+ "object.alphaOmega;")
+
+(test keyword-conversion2 ()
+  (let ((js-output1 (normalize-js-code 
+		      (ps-doc* '(slot-value object :alpha-omega))))
+	(js-output2 (normalize-js-code
+		     (ps-doc* :alpha-omega)))
+      (declare (ignore js-output))
+      (is (eql :cl-user *lisp-output*))))

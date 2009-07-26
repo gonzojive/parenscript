@@ -34,7 +34,7 @@
    (typecase x
      (cons `(array ,@(mapcar (lambda (x) (when x `',x)) x)))
      (null '(array))
-     (keyword x)
+     (keyword (symbol-to-js-string x))
      (symbol (symbol-to-js-string x))
      (number x)
      (string x))
