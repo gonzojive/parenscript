@@ -446,6 +446,26 @@ __setf_someThing(_js1, _js2, _js3);")
     return baz * bar;
 }")
 
+(test-ps-js defun-keyword4
+  (defun hello-world (&key ((:my-name-key my-name) 1))
+    my-name)
+  "function helloWorld() {
+    var myName;
+    var _js3 = arguments.length;
+    for (var n1 = 0; n1 < _js3; n1 += 2) {
+        switch (arguments[n1]) {
+        case 'my-name-key':
+            {
+                myName = arguments[n1 + 1];
+            };
+        };
+    };
+    if (myName === undefined) {
+        myName = 1;
+    };
+    myName;
+}")
+
 (test-ps-js keyword-funcall1
   (func :baz 1)
   "func('baz', 1)")
@@ -799,3 +819,22 @@ try {
     var baz = -1 == x2 ? null : arguments[x2 + 1];
 }"
   :js-target-version 1.6)
+
+(test-ps-js nested-if-expressions1
+  (return (if (if x y z) a b))
+  "return (x ? y : z) ? a : b")
+
+(test-ps-js nested-if-expressions2
+  (return (if x y (if z a b)))
+  "return x ? y : (z ? a : b)")
+
+;; test the parse-lambda-list function
+(test parse-lambda-list/easy
+  (is (equal '((A B C) NIL NIL NIL NIL NIL NIL NIL NIL NIL NIL NIL NIL)
+	     (multiple-value-list (ps::parse-lambda-list '(a b c))))))
+
+(test parse-lambda-list-like-thing-equiv/1
+  (let ((ll
+	 '(a b c &optional opt1 &rest rest &key k &key-object ko)))
+    (is (equal (length (multiple-value-list (ps::parse-lambda-list ll)))
+	       (1- (lengeth (multiple-value-list (ps::parse-lambda-list-like-thing ll))))))))

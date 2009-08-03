@@ -138,9 +138,9 @@
                      state :aux))
               (&key-object
                (unless (member state '(:key :allow-other-keys))
-                 (format t "&key-object misplaced in lmabda list: ~S. Belongs after &key" list))
+                 (format t "&key-object misplaced in lmabda list: ~S. Belongs after &key~%" list))
                (setf state :key-object))
-              (t (format t "unknown LAMBDA-LIST-KEYWORD in lambda list: ~S." arg)))
+              (t (format t "unknown LAMBDA-LIST-KEYWORD in lambda list: ~S.~%" arg)))
             (progn
               (when (symbolp arg)
                 (let ((name (symbol-name arg)))
@@ -166,7 +166,7 @@
                 (:aux (aux arg))
                 (t
                  (format t "found garbage in lambda list when expecting ~
-                                  a keyword: ~S"
+                                  a keyword: ~S~%"
                                  arg))))))
       (when (eq state :rest)
         (format t "&REST without rest variable"))
