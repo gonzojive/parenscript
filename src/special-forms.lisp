@@ -324,13 +324,14 @@ the given lambda-list and body."
                            :below (length arguments) :by 2 :do
                            (case (aref arguments ,n) ,@assigns))
                         ,@defaults)))
-                  (mapcar (lambda (k)
-                            (multiple-value-bind (var init-form keyword-str)
-                                (parse-key-spec k)
-                              (with-ps-gensyms (x)
-                                `(let ((,x ((@ *Array prototype index-of call) arguments ,keyword-str ,(length requireds))))
-                                   (var ,var (if (= -1 ,x) ,init-form (aref arguments (1+ ,x))))))))
-                          keys))))
+		  (progn
+		    (mapcar (lambda (k)
+			      (multiple-value-bind (var init-form keyword-name)
+				  (parse-key-spec k)
+				(with-ps-gensyms (x)
+				  `(let ((,x ((@ *Array prototype index-of call) arguments ',keyword-name ,(length requireds))))
+				     (var ,var (if (= -1 ,x) ,init-form (aref arguments (1+ ,x))))))))
+			    keys)))))
            (rest-form
             (if rest?
                 (with-ps-gensyms (i)

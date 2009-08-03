@@ -1184,4 +1184,16 @@ x1 - x1;
 	(js-output2 (normalize-js-code
 		     (ps-doc* :alpha-omega)))
       (declare (ignore js-output))
-      (is (eql :cl-user *lisp-output*))))
+      (is (eql :cl-user *lisp-output*)))))
+
+;; test the parse-lambda-list function
+(test parse-lambda-list/easy
+  (is (equal '((A B C) NIL NIL NIL NIL NIL NIL NIL NIL NIL NIL NIL NIL)
+	     (multiple-value-list (ps::parse-lambda-list '(a b c))))))
+
+(test parse-lambda-list-like-thing-equiv/1
+  (let ((ll
+	 '(a b c &optional opt1 &rest rest &key k &key-object ko)))
+    (is (equal (length (multiple-value-list (ps::parse-lambda-list ll)))
+	       (1- (lengeth (multiple-value-list (ps::parse-lambda-list-like-thing ll))))))))
+

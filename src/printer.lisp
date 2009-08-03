@@ -44,6 +44,8 @@ arguments, defines a printer for that form using the given body."
 (defmethod ps-print ((s symbol))
   (assert (keywordp s))
   (ps-print (symbol-to-js-string s)))
+;  (ps-print (string-downcase s)))
+
 
 (defmethod ps-print ((compiled-form cons))
   (ps-print% (car compiled-form) (cdr compiled-form)))
