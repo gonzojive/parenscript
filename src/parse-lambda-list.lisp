@@ -138,7 +138,7 @@
                      state :aux))
               (&key-object
                (unless (member state '(:key :allow-other-keys))
-                 (format t "&key-object misplaced in lmabda list: ~S. Belongs after &key~%" list))
+                 (style-warn "&key-object misplaced in lambda list: ~S. Belongs after &key~%" list))
                (setf state :key-object))
               (t (format t "unknown LAMBDA-LIST-KEYWORD in lambda list: ~S.~%" arg)))
             (progn
