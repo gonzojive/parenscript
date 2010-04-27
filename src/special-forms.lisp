@@ -294,7 +294,7 @@ the given lambda-list and body."
   (multiple-value-bind (requireds optionals rest? rest keys? keys allow? aux? aux
                                   more? more-context more-count key-object)
       (parse-lambda-list lambda-list)
-    (declare (ignore allow? aux? aux more? more-context more-count key-object))
+    (declare (ignore allow? aux? aux more? more-context more-count))
     (let* (;; optionals are of form (var default-value)
            (effective-args
             (remove-if
@@ -308,7 +308,7 @@ the given lambda-list and body."
                           `(defaultf ,var ,val ,suppl)))
                     optionals))
            (key-forms
-            (when keys?
+            (when (and keys? (or keys key-object))
               (if (< *js-target-version* 1.6)
                   (with-ps-gensyms (n)
                     (let ((decls nil) (assigns nil) (defaults nil))
@@ -320,17 +320,33 @@ the given lambda-list and body."
                                 (push (list 'defaultf var init-form suppl) defaults)))
                             (reverse keys))
                       `(,@decls
-                        (loop :for ,n :from ,(length requireds)
+			,@(when key-object (list `(var ,key-object (create))))
+                        (loop :for ,n :from ,(+ (length requireds) (length optionals))
                            :below (length arguments) :by 2 :do
-                           (case (aref arguments ,n) ,@assigns))
+			   (progn
+			     ,@(when key-object
+				 (list
+				  `(setf (aref ,key-object (aref arguments ,n))
+					 (aref arguments (+ 1 ,n)))))
+			     ,@(when keys
+				 (list `(case (aref arguments ,n) ,@assigns)))))
                         ,@defaults)))
 		  (progn
 		    (mapcar (lambda (k)
 			      (multiple-value-bind (var init-form keyword-name)
 				  (parse-key-spec k)
-				(with-ps-gensyms (x)
-				  `(let ((,x ((@ *Array prototype index-of call) arguments ',keyword-name ,(length requireds))))
-				     (var ,var (if (= -1 ,x) ,init-form (aref arguments (1+ ,x))))))))
+				(with-ps-gensyms (x n)
+				  `(progn
+				     ,@(when key-object
+					(list
+					 `(progn
+					    (var ,key-object (create))
+					    (loop :for ,n :from ,(+ (length requireds) (length optionals))
+						  :below (length arguments) :by 2 :do
+						  (setf (aref ,key-object (aref arguments ,n))
+							(aref arguments (+ 1 ,n)))))))
+				     (let ((,x ((@ *Array prototype index-of call) arguments ',keyword-name ,(length requireds))))
+				       (var ,var (if (= -1 ,x) ,init-form (aref arguments (1+ ,x)))))))))
 			    keys)))))
            (rest-form
             (if rest?
