@@ -367,7 +367,7 @@
 
 (defpackage "PARENSCRIPT"
   (:use "COMMON-LISP" "ANAPHORA")
-  (:nicknames "JS" "PS")
+  (:nicknames "PS")
   #.(cons :export *parenscript-lang-exports*)
   #.(cons :export *parenscript-interface-exports*)
   #.(cons :export *parenscript-interface-deprecated-exports*)
