@@ -182,7 +182,7 @@ form, FORM, returns the new value for *ps-compilation-level*."
 resultant symbol has an associated script-package. Raises an error if
 the form cannot be compiled to a symbol."
   (let ((exp (compile-parenscript-form form :expecting :expression)))
-    (when (eq (first exp) 'js:variable)
+    (when (eq (first exp) 'ps:variable)
       (setf exp (second exp)))
     (assert (symbolp exp) ()
             "~a is expected to be a symbol, but compiles to ~a (the ParenScript output for ~a alone is \"~a\"). This could be due to ~a being a special form." form exp form (ps* form) form)
@@ -215,7 +215,7 @@ the form cannot be compiled to a symbol."
          (if (ps-literal-p symbol)
              (funcall (get-ps-special-form symbol) :symbol)
              (error "Attempting to use Parenscript special form ~a as variable" symbol)))
-        (t `(js:variable ,symbol))))
+        (t `(ps:variable ,symbol))))
 
 (defun ps-convert-op-name (op)
   (case op
@@ -235,12 +235,12 @@ the form cannot be compiled to a symbol."
       (cond (expanded-p (compile-parenscript-form form :expecting expecting))
 	    ((ps-special-form-p form) (apply (get-ps-special-form (car form)) (cons expecting (cdr form))))
 	    ((op-form-p form)
-	     `(js:operator ,(ps-convert-op-name (compile-parenscript-form (car form) :expecting :symbol))
+	     `(ps:operator ,(ps-convert-op-name (compile-parenscript-form (car form) :expecting :symbol))
 			   ,@(mapcar (lambda (form)
 				       (compile-parenscript-form (ps-macroexpand form) :expecting :expression))
 				     (cdr form))))
 	    ((funcall-form-p form)
-	     `(js:funcall ,(compile-parenscript-form (if (symbolp (car form))
+	     `(ps:funcall ,(compile-parenscript-form (if (symbolp (car form))
 							 (maybe-rename-local-function (car form))
 							 (ps-macroexpand (car form)))
 						     :expecting :expression)

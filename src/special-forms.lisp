@@ -11,7 +11,7 @@
   `(progn
      (add-ps-literal ',name)
      (define-ps-special-form ,name ()
-       (list 'js:literal ,string))))
+       (list 'ps:literal ,string))))
 
 (defpsliteral this      "this")
 (defpsliteral t         "true")
@@ -26,8 +26,8 @@
                 (add-ps-literal ',name)
                 (define-ps-special-form ,name (&optional label)
                   (list ',printer label)))))
-  (def-for-literal break js:break)
-  (def-for-literal continue js:continue))
+  (def-for-literal break ps:break)
+  (def-for-literal continue ps:continue))
 
 (define-ps-special-form quote (x)
   (compile-parenscript-form
@@ -47,7 +47,7 @@
                                  (let ((op (if (listp op) (car op) op))
                                        (spacep (if (listp op) (second op) nil)))
                                    `(define-ps-special-form ,op (x)
-                                      (list 'js:unary-operator ',op
+                                      (list 'ps:unary-operator ',op
                                             (compile-parenscript-form (ps-macroexpand x) :expecting :expression)
                                             :prefix t :space ,spacep))))
                                ops))))
@@ -56,19 +56,19 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; statements
 (define-ps-special-form return (&optional value)
-  `(js:return ,(compile-parenscript-form (ps-macroexpand value) :expecting :expression)))
+  `(ps:return ,(compile-parenscript-form (ps-macroexpand value) :expecting :expression)))
 
 (define-ps-special-form throw (value)
-  `(js:throw ,(compile-parenscript-form (ps-macroexpand value) :expecting :expression)))
+  `(ps:throw ,(compile-parenscript-form (ps-macroexpand value) :expecting :expression)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; arrays
 (define-ps-special-form array (&rest values)
-  `(js:array ,@(mapcar (lambda (form) (compile-parenscript-form (ps-macroexpand form) :expecting :expression))
+  `(ps:array ,@(mapcar (lambda (form) (compile-parenscript-form (ps-macroexpand form) :expecting :expression))
                                values)))
 
 (define-ps-special-form aref (array &rest coords)
-  `(js:aref ,(compile-parenscript-form (ps-macroexpand array) :expecting :expression)
+  `(ps:aref ,(compile-parenscript-form (ps-macroexpand array) :expecting :expression)
             ,(mapcar (lambda (form)
                        (compile-parenscript-form (ps-macroexpand form) :expecting :expression))
                      coords)))
@@ -85,30 +85,30 @@
   (let ((x (ps-macroexpand x))
         (delta (ps-macroexpand delta)))
     (if (eql delta 1)
-        `(js:unary-operator js:++ ,(compile-parenscript-form x :expecting :expression) :prefix t)
-        `(js:operator js:+= ,(compile-parenscript-form x :expecting :expression)
+        `(ps:unary-operator ps:++ ,(compile-parenscript-form x :expecting :expression) :prefix t)
+        `(ps:operator ps:+= ,(compile-parenscript-form x :expecting :expression)
                       ,(compile-parenscript-form delta :expecting :expression)))))
 
 (define-ps-special-form decf (x &optional (delta 1))
   (let ((x (ps-macroexpand x))
         (delta (ps-macroexpand delta)))
     (if (eql delta 1)
-        `(js:unary-operator js:-- ,(compile-parenscript-form x :expecting :expression) :prefix t)
-        `(js:operator js:-= ,(compile-parenscript-form x :expecting :expression)
+        `(ps:unary-operator ps:-- ,(compile-parenscript-form x :expecting :expression) :prefix t)
+        `(ps:operator ps:-= ,(compile-parenscript-form x :expecting :expression)
                       ,(compile-parenscript-form delta :expecting :expression)))))
 
 (define-ps-special-form - (first &rest rest)
   (let ((first (ps-macroexpand first))
         (rest (mapcar #'ps-macroexpand rest)))
     (if rest
-        `(js:operator js:- ,@(mapcar (lambda (val) (compile-parenscript-form val :expecting :expression))
+        `(ps:operator ps:- ,@(mapcar (lambda (val) (compile-parenscript-form val :expecting :expression))
                                      (cons first rest)))
-        `(js:unary-operator js:- ,(compile-parenscript-form first :expecting :expression) :prefix t))))
+        `(ps:unary-operator ps:- ,(compile-parenscript-form first :expecting :expression) :prefix t))))
 
 (define-ps-special-form not (x)
   (let ((form (compile-parenscript-form (ps-macroexpand x) :expecting :expression))
         inverse-op)
-    (if (and (eq (car form) 'js:operator)
+    (if (and (eq (car form) 'ps:operator)
              (= (length (cddr form)) 2)
              (setf inverse-op (case (cadr form)
                                 (== '!=)
@@ -119,15 +119,15 @@
                                 (!= '==)
                                 (=== '!==)
                                 (!== '===))))
-        `(js:operator ,inverse-op ,@(cddr form))
-        `(js:unary-operator js:! ,form :prefix t))))
+        `(ps:operator ,inverse-op ,@(cddr form))
+        `(ps:unary-operator ps:! ,form :prefix t))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; control structures
 (defun flatten-blocks (body)
   (when body
     (if (and (listp (car body))
-             (eq 'js:block (caar body)))
+             (eq 'ps:block (caar body)))
         (append (cdr (car body)) (flatten-blocks (cdr body)))
         (cons (car body) (flatten-blocks (cdr body))))))
 
@@ -135,13 +135,13 @@
   (or (numberp form)
       (stringp form)
       (and (listp form)
-           (eq 'js:literal (car form)))))
+           (eq 'ps:literal (car form)))))
 
 (define-ps-special-form progn (&rest body)
   (let ((body (mapcar #'ps-macroexpand body)))
     (if (and (eq expecting :expression) (= 1 (length body)))
         (compile-parenscript-form (car body) :expecting :expression)
-        `(,(if (eq expecting :expression) 'js:|,| 'js:block)
+        `(,(if (eq expecting :expression) 'ps:|,| 'ps:block)
            ,@(let* ((block (flatten-blocks (remove nil (mapcar (lambda (form)
                                                                  (compile-parenscript-form form :expecting expecting))
                                                                body)))))
@@ -149,7 +149,7 @@
 
 (define-ps-special-form cond (&rest clauses)
   (ecase expecting
-    (:statement `(js:if ,(compile-parenscript-form (caar clauses) :expecting :expression)
+    (:statement `(ps:if ,(compile-parenscript-form (caar clauses) :expecting :expression)
                         ,(compile-parenscript-form `(progn ,@(cdar clauses)))
                         ,@(loop for (test . body) in (cdr clauses) appending
                                (if (eq t test)
@@ -164,22 +164,22 @@
           (car clauses)
         (if (eq t test)
             (compile-parenscript-form `(progn ,@body) :expecting :expression)
-            `(js:? ,(compile-parenscript-form test :expecting :expression)
+            `(ps:? ,(compile-parenscript-form test :expecting :expression)
                    ,(compile-parenscript-form `(progn ,@body) :expecting :expression)
                    ,(make-cond-clauses-into-nested-ifs (cdr clauses)))))
-      (compile-parenscript-form nil :expecting :expression))) ;; js:null
+      (compile-parenscript-form nil :expecting :expression))) ;; ps:null
 
 (define-ps-special-form if (test then &optional else)
   (ecase expecting
-    (:statement `(js:if ,(compile-parenscript-form (ps-macroexpand test) :expecting :expression)
+    (:statement `(ps:if ,(compile-parenscript-form (ps-macroexpand test) :expecting :expression)
                         ,(compile-parenscript-form `(progn ,then))
                         ,@(when else `(:else ,(compile-parenscript-form `(progn ,else))))))
-    (:expression `(js:? ,(compile-parenscript-form (ps-macroexpand test) :expecting :expression)
+    (:expression `(ps:? ,(compile-parenscript-form (ps-macroexpand test) :expecting :expression)
                         ,(compile-parenscript-form (ps-macroexpand then) :expecting :expression)
                         ,(compile-parenscript-form (ps-macroexpand else) :expecting :expression)))))
 
 (define-ps-special-form switch (test-expr &rest clauses)
-  `(js:switch ,(compile-parenscript-form test-expr :expecting :expression)
+  `(ps:switch ,(compile-parenscript-form test-expr :expecting :expression)
      ,(loop for (val . body) in clauses collect
            (cons (if (eq val 'default)
                      'default
@@ -222,13 +222,13 @@
                  (body (compile-parenscript-form `(progn ,@body)))
                  (var-decls (compile-parenscript-form
                              `(progn ,@(mapcar (lambda (var) `(var ,var)) *enclosing-lexical-block-declarations*)))))
-            `(js:block ,@(cdr var-decls) ,@(cdr body))))))
+            `(ps:block ,@(cdr var-decls) ,@(cdr body))))))
 
 (define-ps-special-form %js-lambda (args &rest body)
-  `(js:lambda ,@(compile-function-definition args body)))
+  `(ps:lambda ,@(compile-function-definition args body)))
 
 (define-ps-special-form %js-defun (name args &rest body)
-  `(js:defun ,name ,@(compile-function-definition args body)))
+  `(ps:defun ,name ,@(compile-function-definition args body)))
 
 (defun parse-function-body (body)
   (let* ((docstring
@@ -295,6 +295,7 @@ the given lambda-list and body."
                                   more? more-context more-count key-object)
       (parse-lambda-list lambda-list)
     (declare (ignore allow? aux? aux more? more-context more-count))
+    
     (let* (;; optionals are of form (var default-value)
            (effective-args
             (remove-if
@@ -492,14 +493,14 @@ lambda-list::=
 (define-ps-symbol-macro {} (create))
 
 (define-ps-special-form create (&rest arrows)
-  `(js:object ,@(loop for (key-expr val-expr) on arrows by #'cddr collecting
+  `(ps:object ,@(loop for (key-expr val-expr) on arrows by #'cddr collecting
                      (let ((key (compile-parenscript-form (ps-macroexpand key-expr) :expecting :expression)))
                        (when (keywordp key)
-                         (setf key `(js:variable ,key)))
+                         (setf key `(ps:variable ,key)))
                        (assert (or (stringp key)
                                    (numberp key)
                                    (and (listp key)
-                                        (or (eq 'js:variable (car key))
+                                        (or (eq 'ps:variable (car key))
                                             (eq 'quote (car key)))))
                                ()
                                "Slot key ~s is not one of js-variable, keyword, string or number." key)
@@ -507,13 +508,13 @@ lambda-list::=
 
 (define-ps-special-form %js-slot-value (obj slot)
   (let ((slot (ps-macroexpand slot)))
-    `(js:slot-value ,(compile-parenscript-form (ps-macroexpand obj) :expecting :expression)
+    `(ps:slot-value ,(compile-parenscript-form (ps-macroexpand obj) :expecting :expression)
                     ,(if (and (listp slot) (eq 'quote (car slot)))
                          (second slot) ;; assume we're quoting a symbol
                          (compile-parenscript-form slot)))))
 
 (define-ps-special-form instanceof (value type)
-  `(js:instanceof ,(compile-parenscript-form value :expecting :expression)
+  `(ps:instanceof ,(compile-parenscript-form value :expecting :expression)
                   ,(compile-parenscript-form type :expecting :expression)))
 
 (defpsmacro slot-value (obj &rest slots)
@@ -551,11 +552,11 @@ lambda-list::=
   (let ((lhs (compile-parenscript-form (ps-macroexpand lhs) :expecting :expression))
         (rhs (compile-parenscript-form (ps-macroexpand rhs) :expecting :expression)))
     (if (and (listp rhs)
-             (eq 'js:operator (car rhs))
+             (eq 'ps:operator (car rhs))
              (member (cadr rhs) '(+ *))
              (equalp lhs (caddr rhs)))
-        `(js:operator ,(assignment-op (cadr rhs)) ,lhs (js:operator ,(cadr rhs) ,@(cdddr rhs)))
-        `(js:= ,lhs ,rhs))))
+        `(ps:operator ,(assignment-op (cadr rhs)) ,lhs (ps:operator ,(cadr rhs) ,@(cdddr rhs)))
+        `(ps:= ,lhs ,rhs))))
 
 (defpsmacro setf (&rest args)
   (assert (evenp (length args)) ()
@@ -592,7 +593,7 @@ lambda-list::=
   (let ((name (ps-macroexpand name)))
     (ecase expecting
       (:statement
-       `(js:var ,name ,@(when value-provided?
+       `(ps:var ,name ,@(when value-provided?
                               (list (compile-parenscript-form (ps-macroexpand value) :expecting :expression)))))
       (:expression
        (push name *enclosing-lexical-block-declarations*)
@@ -664,7 +665,7 @@ lambda-list::=
           init-forms))
 
 (define-ps-special-form labeled-for (label init-forms cond-forms step-forms &rest body)
-  `(js:for ,label
+  `(ps:for ,label
            ,(make-for-vars/inits init-forms)
            ,(mapcar (lambda (x) (compile-parenscript-form (ps-macroexpand x) :expecting :expression)) cond-forms)
            ,(mapcar (lambda (x) (compile-parenscript-form (ps-macroexpand x) :expecting :expression)) step-forms)
@@ -727,12 +728,12 @@ lambda-list::=
               ,(do-make-iter-psteps decls)))))
 
 (define-ps-special-form for-in ((var object) &rest body)
-  `(js:for-in ,(compile-parenscript-form var :expecting :expression)
+  `(ps:for-in ,(compile-parenscript-form var :expecting :expression)
               ,(compile-parenscript-form (ps-macroexpand object) :expecting :expression)
               ,(compile-parenscript-form `(progn ,@body))))
 
 (define-ps-special-form while (test &rest body)
-  `(js:while ,(compile-parenscript-form test :expecting :expression)
+  `(ps:while ,(compile-parenscript-form test :expecting :expression)
      ,(compile-parenscript-form `(progn ,@body))))
 
 (defpsmacro dotimes ((var count &optional (result nil result?)) &rest body)
@@ -754,7 +755,7 @@ lambda-list::=
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; misc
 (define-ps-special-form with (expression &rest body)
-  `(js:with ,(compile-parenscript-form expression :expecting :expression)
+  `(ps:with ,(compile-parenscript-form expression :expecting :expression)
      ,(compile-parenscript-form `(progn ,@body))))
 
 (define-ps-special-form try (form &rest clauses)
@@ -763,21 +764,21 @@ lambda-list::=
     (assert (not (cdar catch)) nil "Sorry, currently only simple catch forms are supported.")
     (assert (or catch finally) ()
             "Try form should have either a catch or a finally clause or both.")
-    `(js:try ,(compile-parenscript-form `(progn ,form))
+    `(ps:try ,(compile-parenscript-form `(progn ,form))
           :catch ,(when catch (list (compile-parenscript-form (caar catch) :expecting :symbol)
                                    (compile-parenscript-form `(progn ,@(cdr catch)))))
           :finally ,(when finally (compile-parenscript-form `(progn ,@finally))))))
 
 (define-ps-special-form cc-if (test &rest body)
-  `(js:cc-if ,test ,@(mapcar #'compile-parenscript-form body)))
+  `(ps:cc-if ,test ,@(mapcar #'compile-parenscript-form body)))
 
 (define-ps-special-form regex (regex)
-  `(js:regex ,(string regex)))
+  `(ps:regex ,(string regex)))
 
 (define-ps-special-form lisp (lisp-form)
   ;; (ps (foo (lisp bar))) is in effect equivalent to (ps* `(foo ,bar))
   ;; when called from inside of ps*, lisp-form has access only to the dynamic environment (like for eval)
-  `(js:escape (compiled-form-to-string (compile-parenscript-form ,lisp-form :expecting ,expecting))))
+  `(ps:escape (compiled-form-to-string (compile-parenscript-form ,lisp-form :expecting ,expecting))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; eval-when
