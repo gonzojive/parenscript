@@ -72,9 +72,17 @@ lexical block.")
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defun make-macro-dictionary ()
     (make-hash-table :test 'eq))
+
+  (defvar *ps-function-toplevel-cache* (make-macro-dictionary)
+    "Toplevel environment dictionary from function name to lambda
+    list, for use in SLIME.")
   
   (defvar *ps-macro-toplevel* (make-macro-dictionary)
     "Toplevel macro environment dictionary.")
+
+  (defvar *ps-macro-toplevel-lambda-list* (make-macro-dictionary)
+    "Toplevel macro environment dictionary (but maps macro name to
+    lambda list).  For SLIME.")
 
   (defvar *ps-macro-env* (list *ps-macro-toplevel*)
     "Current macro environment.")
@@ -101,18 +109,27 @@ nil indicates we are no longer toplevel-related."))
   (loop for e in env thereis (gethash name e)))
 
 (defun make-ps-macro-function (args body)
+  "Given the arguments and body to a parenscript macro, returns a
+function that may be called on the entire parenscript form and outputs
+some parenscript code.  Returns a second value that is the effective
+lambda list from a Parenscript perspective."
   (let* ((whole-var (when (eql '&whole (first args)) (second args)))
          (effective-lambda-list (if whole-var (cddr args) args))
          (whole-arg (or whole-var (gensym "ps-macro-form-arg-"))))
-    `(lambda (,whole-arg)
-       (destructuring-bind ,effective-lambda-list
-           (cdr ,whole-arg)
-         ,@body))))
+    (values 
+      `(lambda (,whole-arg)
+         (destructuring-bind ,effective-lambda-list
+             (cdr ,whole-arg)
+           ,@body))
+      effective-lambda-list)))
 
 (defmacro defpsmacro (name args &body body)
-  `(progn (undefine-ps-special-form ',name)
-          (setf (gethash ',name *ps-macro-toplevel*) ,(make-ps-macro-function args body))
-          ',name))
+  (multiple-value-bind (macro-fn-form effective-lambda-list)
+      (make-ps-macro-function args body)
+    `(progn (undefine-ps-special-form ',name)
+            (setf (gethash ',name *ps-macro-toplevel*) ,macro-fn-form)
+            (setf (gethash ',name *ps-macro-toplevel-lambda-list*) ',effective-lambda-list)
+            ',name)))
 
 (defmacro define-ps-symbol-macro (symbol expansion)
   (let ((x (gensym)))
