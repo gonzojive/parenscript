@@ -295,6 +295,17 @@ gensym-prefix-string)."
     (when bad-var
       (error "PS-ONLY-ONCE expected a non-keyword symbol but got ~s" bad-var))))
 
+(defun %check-once-only-vars-superior (vars)
+  (let ((bad-var (find-if (lambda (x)
+                            (typecase x
+                              (symbol (keywordp x))
+                              (cons (not (and (symbolp (first x)) (not (keywordp (first x)))
+                                              (< 0 (length x) 3))))
+                              (t t)))
+                          vars)))
+    (when bad-var
+      (error "PS-ONLY-ONCE expected a non-keyword symbol or (<non-keyword symbol> <anything>) but got ~s" bad-var))))
+
 (defmacro ps-once-only ((&rest vars) &body body)
   (%check-once-only-vars vars)
   (let ((gensyms (mapcar (lambda (x) (ps-gensym (string x))) vars)))
@@ -302,3 +313,19 @@ gensym-prefix-string)."
        `(let* (,,@(mapcar (lambda (g v) ``(,,g ,,v)) gensyms vars))
           ,(let ,(mapcar (lambda (g v) `(,v ,g)) gensyms vars)
              ,@body)))))
+
+(defmacro ps-once-only-superior ((&rest vars) &body body)
+  (%check-once-only-vars-superior vars)
+  (let ((vars (mapcar #'(lambda (x) (typecase x
+                                      (symbol x)
+                                      (cons (first x))))
+                      vars))
+        (evaled-forms (mapcar #'(lambda (x) (typecase x
+                                      (symbol x)
+                                      (cons (second x))))
+                      vars)))
+    (let ((gensyms (mapcar (lambda (x) (ps-gensym (string x))) vars)))
+      `(let ,(mapcar (lambda (g v) `(,g (ps-gensym ,(string v)))) gensyms vars)
+         `(let* (,,@(mapcar (lambda (g e) ``(,,g ,,e)) gensyms evaled-forms))
+            ,(let ,(mapcar (lambda (g v) `(,v ,g)) gensyms vars)
+               ,@body))))))
