@@ -161,21 +161,14 @@ lambda list from a Parenscript perspective."
 (defmacro defpsmacro (name args &body body)
   (multiple-value-bind (macro-fn-form effective-lambda-list)
       (make-ps-macro-function args body)
-<<<<<<< HEAD
     `(progn (undefine-ps-special-form ',name)
             (setf (gethash ',name *ps-macro-toplevel*) ,macro-fn-form)
             (setf (gethash ',name *ps-macro-toplevel-lambda-list*) ',effective-lambda-list)
+            (setf (gethash ',name *ps-function-location-toplevel-cache* nil)
+                  (list (make-source-location ',(or *ps-source-definer-name* 'defpsmacro)
+                                              ',name ',args ',body
+                                              #+sbcl (sb-c:source-location))))
             ',name)))
-=======
-    `(progn
-       (setf (gethash ',name *ps-macro-toplevel*) ,macro-fn-form)
-       (setf (gethash ',name *ps-macro-toplevel-lambda-list*) ',effective-lambda-list)
-       (setf (gethash ',name *ps-function-location-toplevel-cache* nil)
-             (list (make-source-location ',(or *ps-source-definer-name* 'defpsmacro)
-                                         ',name ',args ',body
-                                         #+sbcl (sb-c:source-location))))
-       ',name)))
->>>>>>> e08942f... try to track source locations for slime
 
 (defmacro define-ps-symbol-macro (symbol expansion)
   (let ((x (gensym)))
