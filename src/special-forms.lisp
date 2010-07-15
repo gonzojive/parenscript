@@ -371,6 +371,8 @@ lambda-list::=
   (if (symbolp name)
       (progn
         (setf (gethash name *ps-function-toplevel-cache*) lambda-list)
+        (setf (gethash name *ps-function-location-toplevel-cache* nil)
+              (list (make-source-location 'defun name lambda-list body)))
         `(defun-function ,name ,lambda-list ,@body))
       (progn (assert (and (listp name) (= (length name) 2) (eq 'setf (car name))) ()
                      "(defun ~s ~s ...) needs to have a symbol or (setf symbol) for a name." name lambda-list)
@@ -482,7 +484,8 @@ lambda-list::=
         (compile-parenscript-form `(progn ,@body) :expecting expecting)))))
 
 (define-ps-special-form defmacro (name args &body body) ;; should this be a macro?
-  (eval `(defpsmacro ,name ,args ,@body))
+  (let ((*ps-source-definer-name* 'defmacro))
+    (eval `(defpsmacro ,name ,args ,@body)))
   nil)
 
 (define-ps-special-form define-symbol-macro (name expansion) ;; should this be a macro?

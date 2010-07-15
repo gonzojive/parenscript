@@ -69,5 +69,8 @@ a user-supplied reader instead of the default lisp reader.")
 
 (defun ps-compile-file (source-file)
   "Compiles the given Parenscript source file and returns a Javascript string."
-  (with-open-file (stream source-file :direction :input)
-    (ps-compile-stream stream)))
+  (let ((*ps-source-file* source-file)
+        (*ps-source-position* 1))
+    (with-open-file (stream source-file :direction :input)
+     (ps-compile-stream stream))))
+

@@ -68,6 +68,14 @@ lexical block.")
        (not (op-form-p form))
        (not (ps-special-form-p form))))
 
+
+(defparameter *ps-source-file* nil
+  "Source file being compiled or loaded.")
+(defparameter *ps-source-position* nil
+  "Position inside of *ps-source-file* of current form, an integer.")
+(defparameter *ps-source-buffer* nil)
+(defparameter *ps-source-definer-name* nil)
+
 ;;; macro expansion
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defun make-macro-dictionary ()
@@ -76,6 +84,10 @@ lexical block.")
   (defvar *ps-function-toplevel-cache* (make-macro-dictionary)
     "Toplevel environment dictionary from function name to lambda
     list, for use in SLIME.")
+
+  (defvar *ps-function-location-toplevel-cache* (make-macro-dictionary)
+  "Toplevel environment dictionary from function name to source location,
+  for use in SLIME.")
   
   (defvar *ps-macro-toplevel* (make-macro-dictionary)
     "Toplevel macro environment dictionary.")
@@ -123,13 +135,47 @@ lambda list from a Parenscript perspective."
            ,@body))
       effective-lambda-list)))
 
+(defun make-source-location (definer name lambda-list body &optional sl)
+  (flet ((msl (file buffer position)
+           (let ((snippet (format nil "(~s ~s ~s ~{~s~}" definer name lambda-list body)))
+             `(,(format nil "(~s ~s)" definer name)
+                (:location
+                 ,@(if file
+                       `((:file ,file))
+                       `((:buffer ,buffer)))
+                 (:position ,position)
+                 (:snippet ,(print (subseq snippet 0 (min 256 (length snippet))))))))
+))
+ (cond
+     ((and *ps-source-position* (or *ps-source-file* *ps-source-buffer*))
+      (msl *ps-source-file* *ps-source-buffer* *ps-source-position*))
+     #+sbcl
+     ((and sl (let* ((file (or (getf (sb-c:definition-source-location-plist sl) :emacs-filename)
+                               (sb-c:definition-source-location-namestring sl)))
+                     (buffer (getf (sb-c:definition-source-location-plist sl) :emacs-buffer))
+                     (position (or (getf (sb-c:definition-source-location-plist sl) :emacs-position)
+                                   1)))
+                (when (or buffer file)
+                  (msl file buffer position))))))))
+
 (defmacro defpsmacro (name args &body body)
   (multiple-value-bind (macro-fn-form effective-lambda-list)
       (make-ps-macro-function args body)
+<<<<<<< HEAD
     `(progn (undefine-ps-special-form ',name)
             (setf (gethash ',name *ps-macro-toplevel*) ,macro-fn-form)
             (setf (gethash ',name *ps-macro-toplevel-lambda-list*) ',effective-lambda-list)
             ',name)))
+=======
+    `(progn
+       (setf (gethash ',name *ps-macro-toplevel*) ,macro-fn-form)
+       (setf (gethash ',name *ps-macro-toplevel-lambda-list*) ',effective-lambda-list)
+       (setf (gethash ',name *ps-function-location-toplevel-cache* nil)
+             (list (make-source-location ',(or *ps-source-definer-name* 'defpsmacro)
+                                         ',name ',args ',body
+                                         #+sbcl (sb-c:source-location))))
+       ',name)))
+>>>>>>> e08942f... try to track source locations for slime
 
 (defmacro define-ps-symbol-macro (symbol expansion)
   (let ((x (gensym)))
