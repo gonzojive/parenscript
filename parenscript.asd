@@ -26,6 +26,7 @@
                                      (:file "special-forms")
                                      (:file "deprecated-interface")
                                      (:file "js-dom-symbol-exports")
+                                     (:file "swank-parenscript")
                                      ;; standard library
                                      (:module :lib
                                               :components ((:file "ps-html")

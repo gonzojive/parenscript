@@ -49,6 +49,7 @@ Body is evaluated."
 outputs as the common lisp read function.  We declare it as a variable to allow
 a user-supplied reader instead of the default lisp reader.")
 
+
 (defun ps-compile-stream (stream)
   "Compiles a source stream as if it were a file.  Outputs a Javascript string."
   (let ((*ps-compilation-level* :toplevel)

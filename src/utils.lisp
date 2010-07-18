@@ -38,7 +38,8 @@
   (or (eql char #\+) (eql char #\*)))
 
 (defun special-symbol-name? (string)
-  (nth-value 1 (cl-ppcre:scan-to-strings "[\\*|\\+](.*)[\\*|\\+](.*)" string)))
+  (and (not (ppcre:scan "^\\*+$" string)) ;; all stars is not a special form, it's a special REPL
+       (nth-value 1 (cl-ppcre:scan-to-strings "[\\*|\\+](.*)[\\*|\\+](.*)" string))))
 
 (defun first-uppercase-p (string)
   (and (> (length string) 1)

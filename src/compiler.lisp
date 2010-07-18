@@ -205,6 +205,13 @@ CL environment)."
        (values (ps-macroexpand (funcall it form)) t)
        form))
 
+(defun ps-macroexpand-1 (form)
+  "Analog of CL:MACROEXPAND-1 for parenscript form."
+  (aif (or (lookup-macro-def form *ps-symbol-macro-env*)
+           (and (consp form) (lookup-macro-def (car form) *ps-macro-env*)))
+       (values (funcall it form) t)
+       form))
+
 (defun maybe-rename-local-function (fun-name)
   (aif (lookup-macro-def fun-name *ps-local-function-names*)
        it
