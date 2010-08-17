@@ -135,16 +135,18 @@ lambda list from a Parenscript perspective."
            ,@body))
       effective-lambda-list)))
 
+;; fixme document how source location annotation works and make it
+;; support defvar, defparameter, and more.
 (defun make-source-location (definer name lambda-list body &optional sl)
   (flet ((msl (file buffer position)
            (let ((snippet (format nil "(~s ~s ~s ~{~s~}" definer name lambda-list body)))
              `(,(format nil "(~s ~s)" definer name)
                 (:location
                  ,@(if file
-                       `((:file ,file))
+                       `((:file ,(namestring file)))
                        `((:buffer ,buffer)))
                  (:position ,position)
-                 (:snippet ,(print (subseq snippet 0 (min 256 (length snippet))))))))
+                 (:snippet ,(subseq snippet 0 (min 256 (length snippet)))))))
 ))
  (cond
      ((and *ps-source-position* (or *ps-source-file* *ps-source-buffer*))
