@@ -1,7 +1,5 @@
-<<<<<<< HEAD
-*.fasl
-=======
 *.*fsl
 *.*fasl
->>>>>>> 1d5a849dd5aa0a4c8b171bffad46b1eee8681e9f
 *~
+\#*
+.\#*
