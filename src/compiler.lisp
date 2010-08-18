@@ -88,6 +88,26 @@ lexical block.")
 (defvar *ps-local-function-names* ()) ;; contains a subset of
 (defvar *ps-enclosing-lexicals* ())
 
+(defvar *ps-local-blocks* nil
+  "List of local blocks (as Common Lisp blocks) for the current
+lexical environment.  Each element is of the form
+
+   (block-name block-gensym return-from-spec*)
+
+Where each return-from-spec is one of :function-local or :nested.
+
+:function-local specifies that the return-from form that uses this
+block uses an explicit Javascript `return' statement, while :nested
+indicates the return-from uses a Javascript `throw' to transfer
+control to the block.
+
+block-gensym is a unique name used during a non-local exit (via
+throw).  It is stored in some property of the thrown exception.
+
+If there is a single :nested return-from-spec, then a block should
+probably establish a try-catch, but if all return-from-specs
+are :local then this is not necesssary.")
+
 (defvar *ps-setf-expanders* (make-macro-dictionary)
   "Setf expander dictionary. Key is the symbol of the access
 function of the place, value is an expansion function that takes the
@@ -237,7 +257,9 @@ form, FORM, returns the new value for *ps-compilation-level*."
          (compile-expression (car form)))
     ,@(mapcar #'compile-expression (cdr form))))
 
-(defvar compile-expression?)
+(defvar compile-expression?
+  "Bound to non-null if an expression is desired during compilation of
+some form.")
 
 (defun compile-statement (form)
   (let ((compile-expression? nil))

@@ -130,6 +130,10 @@
                                    ,(expressionize (car (last (cdr catch)))
                                                    func)))
                               finally))))
+          (block
+           `(expressionized-block ,(second form)
+                                  ,func
+                                  ,@(cddr form)))
           (if
            `(if ,(second form)
                 ,(let ((return-null-else? nil))
@@ -144,7 +148,7 @@
              `(,(first form) ,(second form)
                 ,@(butlast (cddr form))
                 ,(expressionize (car (last (cddr form))) func)))
-          ((for for-in return-exp throw while)
+          ((for for-in return-from return-exp throw while)
              form)
           (otherwise
              (funcall func form)))
@@ -246,6 +250,61 @@
                                   (cdr exp)
                                   (list exp))))
                           body)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; control flow
+(define-ps-special-form block (name &body body)
+  "block establishes a block named name and then evaluates forms as an implicit progn.
+
+The special operators block and return-from work together to provide a
+structured, lexical, non-local exit facility. At any point lexically
+contained within forms, return-from can be used with the given name to
+return control and values from the block form, except when an
+intervening block with the same name has been established, in which
+case the outer block is shadowed by the inner one.
+
+The block named name has lexical scope and dynamic extent.
+
+Once established, a block may only be exited once, whether by normal
+return or explicit return."
+  (compile-statement `(expressionized-block ,name ,nil ,@body)))
+
+(define-ps-special-form expressionized-block (name expressionize-func &body body)
+  "If EXPRESSIONIZE-FUNC is non-null, uses EXPRESSIONIZE with the
+resulting expression from this block.  If no expression is passed, we
+do not call EXPRESSIONIZE at all and instead use forms verbatim."
+  (flet ((maybe-expressionize (form)
+           (if expressionize-func
+               (expressionize form expressionize-func)
+               form)))
+    
+    (let* ((block-gensym (ps-gensym name))
+           (block-spec (list name block-gensym))
+           (*ps-local-blocks* (cons block-spec *ps-local-blocks*))
+           (compiled-body (compile-statement (maybe-expressionize `(progn ,@body)))))
+
+      (if (find :nested (cddr block-spec))
+          `(js:try ,compiled-body
+                   :catch (err
+                           ,(compile-statement
+                             (maybe-expressionize
+                              `(progn
+                                 (if (and err 
+                                          (eql ',block-gensym
+                                               (getprop err 'ps-block-target)))
+                                     ;; FIXME make this a multiple-value return
+                                     (getprop err 'ps-block-value)
+                                     (throw err))))))
+                   :finally nil)
+          compiled-body))))
+
+(define-ps-special-form return-from (name &optional result)
+  (let* ((block-spec (find name *ps-local-blocks* :key #'car)))
+    (assert block-spec ()
+            "RETURN-FROM block name ~S does not designate a valid block." name)
+    (push :nested (cddr block-spec))
+    (compile-statement `(throw (create 'ps-block-target ',(second block-spec)
+                                       'ps-block-value ,result)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; function definition
