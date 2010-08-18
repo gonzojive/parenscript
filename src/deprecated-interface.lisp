@@ -1,4 +1,4 @@
-(in-package :parenscript)
+(in-package #:parenscript)
 
 (define-condition simple-style-warning (simple-condition style-warning)
   ())
@@ -64,3 +64,34 @@ is output to the OUTPUT-STREAM stream."
 
 (defun-js symbol-to-js symbol-to-js-string (symbol)
   (symbol-to-js-string symbol))
+
+(defmacro defmacro/ps (name args &body body)
+  (warn-deprecated 'defmacro/ps 'defmacro+ps)
+  `(progn (defmacro ,name ,args ,@body)
+          (import-macros-from-lisp ',name)))
+
+(defmacro defpsmacro-deprecated (old new)
+  `(defpsmacro ,old (&rest args)
+     (warn-deprecated ',old ',new)
+     (cons ',new args)))
+
+(defpsmacro-deprecated slot-value getprop)
+(defpsmacro-deprecated === eql)
+(defpsmacro-deprecated == equal)
+(defpsmacro-deprecated % rem)
+
+(defpsmacro !== (&rest args)
+  (warn-deprecated '!==)
+  `(not (eql ,@args)))
+
+(defpsmacro != (&rest args)
+  (warn-deprecated '!=)
+  `(not (equal ,@args)))
+
+(defpsmacro labeled-for (label init-forms cond-forms step-forms &rest body)
+  (warn-deprecated 'labeled-for 'label)
+  `(label ,label (for ,init-forms ,cond-forms ,step-forms ,@body)))
+
+(defpsmacro do-set-timeout ((timeout) &body body)
+  (warn-deprecated 'do-set-timeout 'set-timeout)
+  `(set-timeout (lambda () ,@body) ,timeout))

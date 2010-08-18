@@ -1,8 +1,6 @@
-(in-package :cl-user)
+(in-package #:cl)
 
-(defpackage :parenscript-test
-  (:nicknames :ps-test :ps-tests :parenscript-tests)
-  (:use :common-lisp :parenscript :5am)
-  (:shadowing-import-from :js :!)
-  (:export #:run-tests
-           #:make-reference-tests-dot-lisp))
+(defpackage #:parenscript-test
+  (:nicknames #:ps-test)
+  (:use #:common-lisp #:parenscript #:5am)
+  (:export #:run-tests #:interface-function))

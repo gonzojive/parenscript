@@ -1,7 +1,4 @@
-(in-package "PARENSCRIPT-TEST")
-
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (def-suite package-system-tests))
+(in-package #:parenscript-test)
 
 (in-suite package-system-tests)
 
@@ -9,9 +6,9 @@
   (#:new)
   "new();")
 
-(defpackage "PS-TEST.MY-LIBRARY"
-  (:use "PARENSCRIPT"))
-(setf (ps-package-prefix "PS-TEST.MY-LIBRARY") "my_library_")
+(defpackage #:ps-test.my-library
+  (:use #:parenscript))
+(setf (ps-package-prefix '#:ps-test.my-library) "my_library_")
 
 (test-ps-js lib-function1
   (defun ps-test.my-library::library-function (x y)
@@ -21,47 +18,59 @@
      };")
 
 (test-ps-js uniform-symbol-handling1
-  (progn (create 'ps-test.my-library::foo 1)
-         (create ps-test.my-library::foo 1)
-         (slot-value foo 'ps-test.my-library::foo))
-  "{ 'my_library_foo' : 1 };
-{ my_library_foo : 1 };
+  (progn (create ps-test.my-library::foo 1)
+         (getprop foo 'ps-test.my-library::foo))
+  "{ my_library_foo : 1 };
 foo.my_library_foo;")
 
-(defpackage "PS-TEST.OBFUSCATE-ME")
-(obfuscate-package "PS-TEST.OBFUSCATE-ME")
+(let ((map (make-hash-table)))
+  (defun symbol-obfuscator (symbol)
+    (or #1=(gethash symbol map)
+        (setf #1# (make-symbol (map 'string (lambda (x)
+                                              (code-char (1+ (char-code x))))
+                                    (symbol-name symbol)))))))
+
+(defpackage #:ps-test.obfuscate-me)
+(obfuscate-package '#:ps-test.obfuscate-me #'symbol-obfuscator)
 
 (test-ps-js obfuscation1
-  (defun ps-test.obfuscate-me::library-function2 (a b ps-test.obfuscate-me::foo)
+  (defun ps-test.obfuscate-me::libfun2 (a b ps-test.obfuscate-me::foo)
     (+ a (ps-test.my-library::library-function b ps-test.obfuscate-me::foo)))
-  "function g1(a, b, g2) {
-    a + my_library_libraryFunction(b, g2);
+  "function mjcgvo3(a, b, gpp) {
+    return a + my_library_libraryFunction(b, gpp);
 };")
 
-(defpackage "PS-TEST.OBFUSCATE-AND-PREFIX")
-(obfuscate-package "PS-TEST.OBFUSCATE-AND-PREFIX")
-(setf (ps-package-prefix "PS-TEST.OBFUSCATE-AND-PREFIX") "__FOO___")
+(defpackage #:ps-test.obfuscate-and-prefix)
+(obfuscate-package '#:ps-test.obfuscate-and-prefix #'symbol-obfuscator)
+(setf (ps-package-prefix '#:ps-test.obfuscate-and-prefix) "__FOO___")
 
 (test-ps-js obfuscate-and-prefix
-  (defun ps-test.obfuscate-and-prefix::some-function (a ps-test.obfuscate-and-prefix::b ps-test.my-library::d)
+  (defun ps-test.obfuscate-and-prefix::xfun (a ps-test.obfuscate-and-prefix::b ps-test.my-library::d)
     (* a
-       (ps-test.obfuscate-me::library-function2 ps-test.obfuscate-and-prefix::b a)
+       (ps-test.obfuscate-me::libfun2 ps-test.obfuscate-and-prefix::b a)
        (ps-test.my-library::library-function ps-test.my-library::d ps-test.obfuscate-and-prefix::b)))
-  "function __FOO___g1(a, __FOO___g2, my_library_d) {
-    a * g1(__FOO___g2, a) * my_library_libraryFunction(my_library_d, __FOO___g2);
+  "function __FOO___ygvo(a, __FOO___c, my_library_d) {
+    return a * mjcgvo3(__FOO___c, a) * my_library_libraryFunction(my_library_d, __FOO___c);
 };")
 
-(defpackage "PS-TEST.PSTSTPKG"
-  (:use "PARENSCRIPT"))
+(defpackage #:ps-test.pststpkg
+  (:use #:parenscript))
 
 (test namespace1 ()
-  (setf (ps-package-prefix "PS-TEST.PSTSTPKG") "prefix_")
+  (setf (ps-package-prefix '#:ps-test.pststpkg) "prefix_")
   (is (string= "prefix_foo;" (normalize-js-code (ps* 'ps-test.pststpkg::foo)))))
 
-(common-lisp:in-package "PS-TEST.PSTSTPKG")
+(common-lisp:in-package #:ps-test.pststpkg)
 
 (ps-test::test-ps-js namespace-and-special-forms
   (let ((foo (create bar 1 not-a-keyword something)))
-    (return (and (not foo) (+ (slot-value foo 'bar) some-other-var))))
+    (return (and (not foo) (+ (getprop foo 'bar) some-other-var))))
 "var prefix_foo = { prefix_bar : 1, prefix_notAKeyword : prefix_something };
 return !prefix_foo && prefix_foo.prefix_bar + prefix_someOtherVar;")
+
+(ps-test::test-ps-js exported-interface
+  (defun ps-test:interface-function (baz)
+    (+ baz ps-test.obfuscate-me::foo))
+"function interfaceFunction(prefix_baz) {
+    return prefix_baz + gpp;
+};")

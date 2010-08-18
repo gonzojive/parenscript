@@ -1,376 +1,396 @@
-(in-package "CL-USER")
+(in-package #:cl)
 
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (defparameter *parenscript-lang-exports*
-    '(;; literals
-      #:t
-      #:f
-      #:true
-      #.(symbol-name 'nil) ; for case-sensitive Lisps like some versions of Allegro
-      #:this
-      #:false
-      #:undefined
-      #:{}
+(provide :parenscript)
 
-      ;; keywords
-      #:break
-      #:continue
+(defpackage #:parenscript
+  (:use #:cl #:anaphora)
+  (:nicknames #:ps)
+  (:export
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Compiler interface
 
-      ;; array literals
-      #:array
-      #:list
-      #:aref
-      #:elt
-      #:make-array
-      #:[]
+   ;; compiler
+   #:*js-target-version*
+   #:ps
+   #:*parenscript-stream*
+   #:ps-to-stream
+   #:ps-doc
+   #:ps-doc*
+   #:ps*
+   #:ps-inline
+   #:ps-inline*
+   #:*ps-read-function*
+   #:ps-compile-file
+   #:ps-compile-stream
+   ;; for parenscript macro definition within lisp
+   #:defpsmacro
+   #:defmacro+ps
+   #:import-macros-from-lisp
 
-      ;; operators
-      #:! #:not #:~
-      #:* #:/ #:%
-      #:+ #:-
-      #:<< #:>>
-      #:>>>
-      #:< #:> #:<= #:>=
-      #:in
-      #:eql #:== #:!= #:=
-      #:=== #:!==
-      #:&
-      #:^
-      #:\|
-      #:\&\& #:and
-      #:\|\| #:or
-      #:>>= #:<<=
-      #:*= #:/= #:%= #:+= #:\&= #:^= #:\|= #:~=
-      #:incf #:decf
-      
-      ;; compile-time stuff
-      #:eval-when
+   ;; gensym
+   #:ps-gensym
+   #:with-ps-gensyms
+   #:ps-once-only
+   #:*ps-gensym-counter*
 
-      ;; body forms
-      #:progn
+   ;; naming and namespaces
+   #:ps-package-prefix
+   #:obfuscate-package
+   #:unobfuscate-package
 
-      ;; object literals
-      #:create
-      #:with-slots
+   ;; printer
+   #:symbol-to-js-string
+   #:*js-string-delimiter*
+   #:*js-inline-string-delimiter*
+   #:*ps-print-pretty*
+   #:*indent-num-spaces*
 
-      ;; if
-      #:if
-      #:when
-      #:unless
+   ;; deprecated interface
+   #:define-script-symbol-macro
+   #:gen-js-name
+   #:with-unique-js-names
+   #:defjsmacro
+   #:js-compile
+   #:js-inline
+   #:js-inline*
+   #:js
+   #:js*
+   #:symbol-to-js
+   #:slot-value
+   #:compile-script
+   #:defmacro/ps
+   #:%
+   #:==
+   #:===
+   #:!=
+   #:!==
+   #:labeled-for
+   #:do-set-timeout
 
-      ;; single argument statements
-      #:return
-      #:throw
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Language
 
-      ;; single argument expressions
-      #:delete
-      #:void
-      #:typeof
-      #:instanceof
-      #:new
+   ;; literals
+   #:t
+   #:f
+   #.(symbol-name 'nil) ; for case-sensitive Lisps like some versions of Allegro
+   #:this
+   #:undefined
+   #:{}
 
-      ;; assignment and binding
-      #:setf
-      #:defsetf
-      #:psetf
-      #:setq
-      #:psetq
-      #:let*
-      #:let
+   ;; keywords
+   #:break
+   #:continue
 
-      ;; variables
-      #:var
-      #:defvar
+   ;; array literals
+   #:array
+   #:list
+   #:aref
+   #:elt
+   #:make-array
+   #:[]
 
-      ;; iteration
-      #:labeled-for
-      #:for
-      #:for-in
-      #:while
-      #:do
-      #:do*
-      #:dotimes
-      #:dolist
-      #:loop
+   ;; operators
+   ;; logical boolean
+   #:not
+   #:and
+   #:or
 
-      ;; with
-      #:with
+   ;; bitwise boolean
+   #:logand
+   #:logior
+   #:logxor
+   #:lognot
 
-      ;; case
-      #:switch
-      #:case
-      #:default
+   #:*
+   #:/
+   #:rem
+   #:+
+   #:-
+   #:<
+   #:>
+   #:<=
+   #:>=
+   #:incf
+   #:decf
+   #:equal
+   #:eql
+   #:eq
+   #:=
 
-      ;; try throw catch
-      #:try
+   ;; compile-time stuff
+   #:eval-when
 
-      ;; regex literals
-      #:regex
+   ;; body forms
+   #:progn
 
-      ;; conditional compilation (IE)
-      #:cc-if
+   ;; object literals
+   #:create
+   #:with-slots
 
-      ;; function definition
-      #:defun
-      #:lambda
-      #:flet
-      #:labels
+   ;; if
+   #:if
+   #:when
+   #:unless
 
-      ;; lambda lists
-      #:&key
-      #:&rest
-      #:&body
-      #:&optional
-      #:&aux
-      #:&environment
-      #:&key-object
+   ;; single argument statements
+   #:return
+   #:throw
 
-      ;; slot access
-      #:with-slots
-      #:slot-value
+   ;; single argument expressions
+   #:delete
+   #:typeof
+   #:instanceof
+   #:new
 
-      ;; macros
-      #:macrolet
-      #:symbol-macrolet
-      #:define-symbol-macro
-      #:define-ps-symbol-macro
-      #:defmacro
+   ;; assignment and binding
+   #:setf
+   #:defsetf
+   #:psetf
+   #:setq
+   #:psetq
+   #:let*
+   #:let
 
-      ;; lisp eval
-      #:lisp
+   ;; variables
+   #:var
+   #:defvar
 
-      ;; v v v STUFF WE SHOULD PROBABLY MOVE TO OTHER LIBS v v v
+   ;; iteration
+   #:label
+   #:for
+   #:for-in
+   #:while
+   #:do
+   #:do*
+   #:dotimes
+   #:dolist
+   #:loop
 
-      ;; html generator for javascript
-      #:*ps-html-empty-tag-aware-p*
-      #:*ps-html-mode*
-      #:ps-html
-      #:who-ps-html
+   ;; with
+   #:with
 
-      ;; utils
-      #:do-set-timeout
-      #:max
-      #:min
-      #:floor
-      #:ceiling
-      #:round
-      #:sin
-      #:cos
-      #:tan
-      #:asin
-      #:acos
-      #:atan
-      #:pi
-      #:sinh
-      #:cosh
-      #:tanh
-      #:asinh
-      #:acosh
-      #:atanh
-      #:1+
-      #:1-
-      #:abs
-      #:evenp
-      #:oddp
-      #:exp
-      #:expt
-      #:log
-      #:sqrt
-      #:random
-      #:ignore-errors
-      #:concatenate
-      #:concat-string
-      #:length
-      #:null
-      #:defined
-      #:undefined
-      #:@
-      #:with-lambda
-      #:stringp
-      #:numberp
-      #:functionp
-      #:objectp
-      #:memoize
-      #:append
-      #:apply
-      #:destructuring-bind
+   ;; case
+   #:switch
+   #:case
+   #:default
 
-      ;; DOM accessing utils
-      #:inner-html
-      #:uri-encode
-      #:attribute
-      #:offset
-      #:scroll
-      #:inner
-      #:client
-      
-      ;; js runtime utils
-      #:*ps-lisp-library*
-      #:mapcar
-      #:map-into
-      #:map
-      #:map-until
-      #:member
-      #:append
-      #:set-difference
-      ))
-  (defparameter *parenscript-interface-exports*
-    '(;; compiler
-      #:*js-target-version*
-      #:compile-script
-      #:ps
-      #:ps-doc
-      #:ps-doc*
-      #:ps*
-      #:ps-inline
-      #:ps-inline*
-      #:*ps-read-function*
-      #:ps-compile-file
-      #:ps-compile-stream
-      ;; for parenscript macro definition within lisp
-      #:defpsmacro
-      #:defmacro/ps
-      #:defmacro+ps
-      #:import-macros-from-lisp
+   ;; try throw catch
+   #:try
 
-      ;; gensym
-      #:ps-gensym
-      #:with-ps-gensyms
-      #:ps-once-only
-      #:*ps-gensym-counter*
+   ;; regex literals
+   #:regex
 
-      ;; naming and namespaces
-      #:ps-package-prefix
-      #:obfuscate-package
-      #:unobfuscate-package
+   ;; function definition
+   #:defun
+   #:lambda
+   #:flet
+   #:labels
 
-      ;; printer
-      #:symbol-to-js-string
-      #:*js-string-delimiter*
-      #:*js-inline-string-delimiter*
-      #:*ps-print-pretty*
-      #:*indent-num-spaces*
-      ))
-  (defparameter *parenscript-interface-deprecated-exports*
-    '(;; deprecated interface
-      #:define-script-symbol-macro
-      #:gen-js-name
-      #:with-unique-js-names
-      #:defjsmacro
-      #:js-compile
-      #:js-inline
-      #:js-inline*
-      #:js
-      #:js*
-      #:symbol-to-js
-      ))
+   ;; lambda lists
+   #:&key
+   #:&rest
+   #:&body
+   #:&optional
+   #:&aux
+   #:&environment
+   #:&key-object
 
-  (defparameter *javascript-exports*
-    '(;;; for representing js code as s-expressions
+   ;; slot access
+   #:with-slots
+   #:getprop
+   #:in
 
-      ;; operators
-      ; arithmetic
-      #:+
-      #:-
-      #:*
-      #:/
-      #:%
+   ;; macros
+   #:macrolet
+   #:symbol-macrolet
+   #:define-symbol-macro
+   #:define-ps-symbol-macro
+   #:defmacro
 
-      ; bitwise
-      #:&
-      #:|\||
-      #:^
-      #:~
-      #:>>
-      #:<<
-      #:>>>
+   ;; lisp eval
+   #:lisp
 
-      ; assignment
-      #:=
-      #:+=
-      #:-=
-      #:*=
-      #:/=
-      #:%=
-      #:&=
-      #:\|=
-      #:^+
-      #:>>=
-      #:<<=
-      #:>>>=
+   ;; v v v STUFF WE SHOULD PROBABLY MOVE TO OTHER LIBS v v v
 
-      ; increment/decrement
-      #:++
-      #:--
+   ;; html generator for javascript
+   #:*ps-html-empty-tag-aware-p*
+   #:*ps-html-mode*
+   #:ps-html
+   #:who-ps-html
 
-      ; comparison
-      #:==
-      #:===
-      #:!=
-      #:!==
-      #:>
-      #:>=
-      #:<
-      #:<=
+   ;; utils
+   #:max
+   #:min
+   #:floor
+   #:ceiling
+   #:round
+   #:sin
+   #:cos
+   #:tan
+   #:asin
+   #:acos
+   #:atan
+   #:pi
+   #:sinh
+   #:cosh
+   #:tanh
+   #:asinh
+   #:acosh
+   #:atanh
+   #:1+
+   #:1-
+   #:abs
+   #:evenp
+   #:oddp
+   #:exp
+   #:expt
+   #:log
+   #:sqrt
+   #:random
+   #:ignore-errors
+   #:concatenate
+   #:concat-string
+   #:length
+   #:defined
+   #:undefined
+   #:@
+   #:chain
+   #:stringp
+   #:numberp
+   #:functionp
+   #:objectp
+   #:append
+   #:apply
+   #:destructuring-bind
 
-      ; logical
-      #:&&
-      #:||||
-      #:!
-      
-      ; misc
-      #:? ; ternary
-      #:|,|
-      #:delete
-      #:function
-      #:get
-      #:in
-      #:instanceof
-      #:new
-      #:this
-      #:typeof
-      #:void
-      
+   ;; DOM accessing utils
+   #:inner-html
+   #:uri-encode
+   #:attribute
+   #:offset
+   #:scroll
+   #:inner
+   #:client
 
-      ;; statements
-      #:block
-      #:break
-      #:continue
-      #:do-while
-      #:for
-      #:for-in
-      #:if
-      #:label
-      #:return
-      #:switch
-      #:throw
-      #:try
-      #:var
-      #:while
-      #:with
+   ;; js runtime utils
+   #:*ps-lisp-library*
+   #:mapcar
+   #:map-into
+   #:map
+   #:member
+   #:append
+   #:set-difference
+   ))
 
-      
-      #:unary-operator
-      #:literal
-      #:array
-      #:aref
-      #:operator
-      #:cond
-      #:lambda
-      #:object
-      #:variable
-      #:slot-value
-      #:funcall
-      #:escape
-      ))
-  )
 
-(defpackage "PARENSCRIPT"
-  (:use "COMMON-LISP" "ANAPHORA")
-  (:nicknames "PS")
-  #.(cons :export *parenscript-lang-exports*)
-  #.(cons :export *parenscript-interface-exports*)
-  #.(cons :export *parenscript-interface-deprecated-exports*)
-  #.(cons :export *javascript-exports*)
-  )
+(defpackage #:js
+  (:shadowing-import-from #:cl
+   #:+
+   #:-
+   #:*
+   #:/)
+  (:export
+   ;; operators
+   ;; arithmetic
+   #:+
+   #:-
+   #:negate
+   #:*
+   #:/
+   #:%
+
+   ;; bitwise
+   #:&
+   #:\|
+   #:^
+   #:~
+   #:>>
+   #:<<
+   #:>>>
+
+   ;; assignment
+   #:=
+   #:+=
+   #:-=
+   #:*=
+   #:/=
+   #:%=
+   #:&=
+   #:\|=
+   #:^=
+   #:~=
+   #:>>=
+   #:<<=
+   #:>>>=
+
+   ;; increment/decrement
+   #:++
+   #:--
+   #:post++
+   #:post--
+
+   ;; comparison
+   #:==
+   #:===
+   #:!=
+   #:!==
+   #:>
+   #:>=
+   #:<
+   #:<=
+
+   ;; logical
+   #:&&
+   #:\|\|
+   #:!
+
+   ;; misc
+   #:? ;; ternary
+   #:|,|
+   #:delete
+   #:function
+   #:get
+   #:in
+   #:instanceof
+   #:new
+   #:typeof
+   #:void
+
+   ;; literals
+   #:nil
+   #:t
+   #:f
+   #:undefined
+   #:this
+
+   ;; statements
+   #:block
+   #:break
+   #:continue
+   #:do-while
+   #:for
+   #:for-in
+   #:if
+   #:label
+   #:return
+   #:switch
+   #:default
+   #:throw
+   #:try
+   #:var
+   #:while
+   #:with
+
+   #:array
+   #:aref
+   #:cond
+   #:lambda
+   #:defun
+   #:object
+   #:getprop
+   #:funcall
+   #:escape
+   #:regex
+   ))
 

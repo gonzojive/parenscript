@@ -1,4 +1,4 @@
-(in-package :parenscript)
+(in-package #:parenscript)
 
 ;;;; This software was taken from the SBCL system, mostly verbatim.
 
@@ -40,7 +40,7 @@
                              (setq ,n-tail ,n-res  ,n-value ,n-res)))))
                   forms)
         ,n-value))))
-  
+
 (defmacro collect (collections &body body)
   (let ((macros ())
         (binds ()))
@@ -68,7 +68,7 @@
                     (collect-normal-expander ',n-value ',kind args))
                   macros))))
     `(macrolet ,macros (let* ,(nreverse binds) ,@body))))
-  
+
 (defparameter *lambda-list-keywords*
  '(&allow-other-keys &aux &body &environment &key &key-object &optional &rest &whole))
 
@@ -119,7 +119,7 @@
                                '(:required :optional :post-rest :post-more))
                  (format t "misplaced &KEY in lambda list: ~S" list))
                (when (optional)
-                 (format t "&OPTIONAL and &KEY found in the same lambda list: ~S" list))
+                 (style-warn "&OPTIONAL and &KEY found in the same lambda list: ~S" list))
                (setq keyp t
                      state :key))
               (&allow-other-keys

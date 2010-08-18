@@ -1,4 +1,4 @@
-(in-package "PS-TEST")
+(in-package #:parenscript-test)
 
 (defun normalize-whitespace (str)
   (substitute #\Space #\Newline (substitute #\Space #\Tab str)))
@@ -35,6 +35,10 @@
          (is (string= (normalize-js-code (let ((*js-target-version* ,js-target-version))
                                            (ps-doc* ',parenscript)))
                       (normalize-js-code ,javascript)))))
+
+(def-suite ps-tests)
+(def-suite ref-tests)
+(def-suite package-system-tests)
 
 (defun run-tests()
   (format t "Running reference tests:~&")

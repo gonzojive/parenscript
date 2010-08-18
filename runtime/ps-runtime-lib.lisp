@@ -1,17 +1,17 @@
-(in-package "PARENSCRIPT")
+(in-package #:parenscript)
 
 ;;; Script of library functions you can include with your own code to
 ;;; provide standard Lisp functionality.
 
 (defparameter *ps-lisp-library*
   '(progn
-    (defun mapcar (fun &rest as)
+    (defun mapcar (fun &rest arrs)
       (let ((result-array (make-array)))
-        (if (= 1 (length as))
-            (dolist (element (aref as 0))
+        (if (= 1 (length arrs))
+            (dolist (element (aref arrs 0))
               ((@ result-array push) (fun element)))
-            (dotimes (i (length (aref as 0)))
-              (let ((args-array (mapcar (lambda (a) (return (aref a i))) as)))
+            (dotimes (i (length (aref arrs 0)))
+              (let ((args-array (mapcar (lambda (a) (return (aref a i))) arrs)))
                 ((@ result-array push) ((@ fun apply) fun args-array)))))
         (return result-array)))
 
@@ -32,14 +32,6 @@
           (setf (aref result idx) (fn el))
           (setf idx (1+ idx)))
         (return result)))
-
-    (defun map-until (fn arr)
-      "Call FN on each element in ARR until it returns something. If so return that value."
-      (let ((result))
-        (dolist (el arr)
-          (setf result (fn el))
-          (unless (= result undefined)
-            (return result)))))
 
     (defun member (item arr)
       "Check if ITEM is a member of ARR."
@@ -63,4 +55,11 @@
         (do* ((i (if init -1 0) (1+ i))
               (acc (if init init (elt list 0)) (func acc (elt list i))))
              ((>= i (1- (length list)))))
-        (return acc)))))
+        (return acc)))
+
+    (defun nconc (arr &rest arrs)
+    (when (and arr (> (length arr) 0))
+      (loop :for other :in arrs :when (and other (> (length other) 0)) :do
+        ((@ arr :splice :apply) arr
+         (append (list (length arr) (length other)) other))))
+    arr)))

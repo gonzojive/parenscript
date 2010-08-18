@@ -1,13 +1,6 @@
 ;;;; -*- lisp -*-
 
-(in-package :cl-user)
-
-(defpackage :parenscript.system
-  (:use :cl :asdf))
-
-(in-package :parenscript.system)
-
-(defsystem :parenscript
+(asdf:defsystem :parenscript
   :name "parenscript"
   :author "Manuel Odendahl <manuel@bl0rg.net>"
   :maintainer "Vladimir Sedach <vsedach@gmail.com>"
@@ -24,6 +17,7 @@
                                      (:file "printer")
                                      (:file "compilation-interface")
                                      (:file "special-forms")
+                                     (:file "macros")
                                      (:file "deprecated-interface")
                                      (:file "js-dom-symbol-exports")
                                      (:file "swank-parenscript")
@@ -31,7 +25,6 @@
                                      (:module :lib
                                               :components ((:file "ps-html")
                                                            (:file "ps-loop")
-                                                           (:file "ps-macro-lib")
                                                            (:file "ps-dom"))
                                               :depends-on ("compilation-interface"))))
                (:module :runtime
@@ -39,24 +32,7 @@
                         :depends-on (:src)))
   :depends-on (:cl-ppcre :anaphora))
 
-(defmethod asdf:perform :after ((op asdf:load-op) (system (eql (asdf:find-system :parenscript)))) 
-  (pushnew :parenscript cl:*features*))
-
-(defmethod asdf:perform ((o test-op) (c (eql (find-system :parenscript))))
-  (asdf:operate 'asdf:test-op :parenscript.test))
-
-(defsystem :parenscript.test
-  :components ((:module :t
-                        :serial t
-                        :components ((:file "test-package")
-                                     (:file "test")
-                                     (:file "ref2test")
-                                     (:file "reference-tests")
-                                     (:file "ps-tests")
-                                     (:file "package-system-tests"))))
-  :depends-on (:parenscript :fiveam))
-
-(defmethod asdf:perform ((o test-op) (c (eql (find-system :parenscript.test))))
+(defmethod asdf:perform ((o asdf:test-op) (c (eql (asdf:find-system :parenscript))))
   (asdf:operate 'asdf:load-op :parenscript.test)
-  (funcall (intern (symbol-name :run-tests)
-                   (find-package :parenscript-test))))
+  (funcall (intern (symbol-name '#:run-tests)
+                   (find-package '#:parenscript-test))))
