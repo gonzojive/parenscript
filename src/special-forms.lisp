@@ -90,14 +90,20 @@
        (string x)
        (vector `(array ,@(loop :for el :across x :collect (quote% el))))))))
 
-(defvar return-null-else? t)
+(defvar return-null-else? t
+  "If T, treats a null ELSE clause in (IF TEST THEN ELSE?) as NIL.
+  Otherwise, the behavior is not documented.")  ;; FIXME document
 
 (defun expressionize (form func)
+  ;; FIXME document this function
   (let ((form (ps-macroexpand form)))
     (if (consp form)
         (case (car form)
           (progn
-            `(,@(butlast form) ,(expressionize (car (last form)) func)))
+            ;; treat (progn) without any forms as nil
+            (if (null (cdr form))
+                (expressionize nil func)
+                `(,@(butlast form) ,(expressionize (car (last form)) func))))
           (switch
               `(switch ,(second form)
                  ,@(loop for (cvalue . cbody) in (cddr form)
