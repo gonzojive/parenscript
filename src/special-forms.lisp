@@ -95,7 +95,15 @@
   Otherwise, the behavior is not documented.")  ;; FIXME document
 
 (defun expressionize (form func)
-  ;; FIXME document this function
+  "Transforms the Parenscript form FORM into another Parenscript form
+that yields at least one value in zero or more locations, inserting
+the result of calling FUNC with a value-yielding form into the
+transformed Parenscript code.
+
+This is used to transform what would otherwise be a statement into
+something that can act as a statement.
+
+TODO: specify what exactly expressionizing does to the evironment."
   (let ((form (ps-macroexpand form)))
     (if (consp form)
         (case (car form)
