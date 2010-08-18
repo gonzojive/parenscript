@@ -520,6 +520,8 @@ the given lambda-list and body."
  `(js:object
    ,@(loop for (key val-expr) on arrows by #'cddr collecting
           (progn
+            (when (and (consp key) (eql 'quote (first key)) (symbolp (second key)))
+              (setf key (compile-expression key)))
             (assert (or (stringp key) (numberp key) (symbolp key))
                     ()
                     "Slot key ~s is not one of symbol, string or number."
@@ -546,11 +548,12 @@ the given lambda-list and body."
   (let ((expanded-slot (ps-macroexpand slot))
         (obj (compile-expression obj)))
     (if (and (listp expanded-slot)
-             (eq 'quote (car expanded-slot)))
-        (aif (or (ps-reserved-symbol? (second expanded-slot))
-                 (and (keywordp (second expanded-slot)) (second expanded-slot)))
-             `(js:aref ,obj ,it)
-             `(js:getprop ,obj ,(second expanded-slot)))
+             (eq 'quote (car expanded-slot))
+             (symbolp (second expanded-slot)))
+        (aif (or  (ps-reserved-symbol? (second expanded-slot))
+                  (and (keywordp (second expanded-slot)) (second expanded-slot)))
+          `(js:aref ,obj ,it)
+          `(js:getprop ,obj ,(second expanded-slot)))
         `(js:aref ,obj ,(compile-expression slot)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
