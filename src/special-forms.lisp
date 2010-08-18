@@ -140,15 +140,14 @@
             `(cond ,@(loop for clause in (cdr form) collect
                           `(,@(butlast clause)
                               ,(expressionize (car (last clause)) func)))))
+          ((with label let flet labels macrolet symbol-macrolet)
+             `(,(first form) ,(second form)
+                ,@(butlast (cddr form))
+                ,(expressionize (car (last (cddr form))) func)))
+          ((for for-in return-exp throw while)
+             form)
           (otherwise
-           (cond ((find (car form)
-                        '(with label let flet labels macrolet symbol-macrolet))
-                  `(,(first form) ,(second form)
-                     ,@(butlast (cddr form))
-                     ,(expressionize (car (last (cddr form))) func)))
-                 ((find (car form) '(for for-in return-exp throw while))
-                  form)
-                 (t (funcall func form)))))
+             (funcall func form)))
         (funcall func form))))
 
 (define-ps-special-form return-exp (&optional form)

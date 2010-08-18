@@ -14,6 +14,9 @@ vice-versa.")
 (defvar *psw-stream*)
 
 (defun parenscript-print (form immediate?)
+  "Prints intermediate Parenscript representation FORM.  If IMMEDIATE?
+is non-null, writes output to *PSW-STREAM*.  Otherwise, returns a
+list of strings."
   (declare (special immediate?))
   (let ((*indent-level* 0)
         (*psw-stream* (if immediate?

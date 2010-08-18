@@ -72,8 +72,6 @@
 (defparameter *lambda-list-keywords*
  '(&allow-other-keys &aux &body &environment &key &key-object &optional &rest &whole))
 
-(defun style-warn (&rest args) (apply #'format t args))
-
 (defun parse-lambda-list-like-thing (list)
  (collect ((required)
             (optional)
@@ -102,45 +100,45 @@
             (case arg
               (&optional
                (unless (eq state :required)
-                 (format t "misplaced &OPTIONAL in lambda list: ~S"
-                         list))
+                 (style-warn "misplaced &OPTIONAL in lambda list: ~S"
+                             list))
                (setq state :optional))
               (&rest
                (unless (member state '(:required :optional))
-                 (format t "misplaced &REST in lambda list: ~S" list))
+                 (style-warn "misplaced &REST in lambda list: ~S" list))
                (setq state :rest))
               (&more
                (unless (member state '(:required :optional))
-                 (format t "misplaced &MORE in lambda list: ~S" list))
+                 (style-warn "misplaced &MORE in lambda list: ~S" list))
                (setq morep t
                      state :more-context))
               (&key
                (unless (member state
                                '(:required :optional :post-rest :post-more))
-                 (format t "misplaced &KEY in lambda list: ~S" list))
+                 (style-warn "misplaced &KEY in lambda list: ~S" list))
                (when (optional)
                  (style-warn "&OPTIONAL and &KEY found in the same lambda list: ~S" list))
                (setq keyp t
                      state :key))
               (&allow-other-keys
                (unless (member state '(:key :post-key))
-                 (format t "misplaced &ALLOW-OTHER-KEYS in ~
+                 (style-warn "misplaced &ALLOW-OTHER-KEYS in ~
                                   lambda list: ~S"
                                  list))
                (setq allowp t
                      state :allow-other-keys))
               (&aux
                (when (member state '(:rest :more-context :more-count))
-                 (format t "misplaced &AUX in lambda list: ~S" list))
+                 (style-warn "misplaced &AUX in lambda list: ~S" list))
                (when auxp
-                 (format t "multiple &AUX in lambda list: ~S" list))
+                 (style-warn "multiple &AUX in lambda list: ~S" list))
                (setq auxp t
                      state :aux))
               (&key-object
                (unless (member state '(:key :allow-other-keys))
                  (style-warn "&key-object misplaced in lambda list: ~S. Belongs after &key~%" list))
                (setf state :key-object))
-              (t (format t "unknown LAMBDA-LIST-KEYWORD in lambda list: ~S.~%" arg)))
+              (t (style-warn "unknown LAMBDA-LIST-KEYWORD in lambda list: ~S.~%" arg)))
             (progn
               (when (symbolp arg)
                 (let ((name (symbol-name arg)))
@@ -165,11 +163,11 @@
                 (:key-object (setf key-object arg) (setf state :post-key))
                 (:aux (aux arg))
                 (t
-                 (format t "found garbage in lambda list when expecting ~
+                 (style-warn "found garbage in lambda list when expecting ~
                                   a keyword: ~S~%"
                                  arg))))))
       (when (eq state :rest)
-        (format t "&REST without rest variable"))
+        (style-warn "&REST without rest variable"))
 
       (values (required) (optional) restp rest keyp (keys) allowp auxp (aux)
               morep more-context more-count
@@ -190,7 +188,7 @@
     ;; Check validity of parameters.
     (flet ((need-symbol (x why)
              (unless (symbolp x)
-               (format t "~A is not a symbol: ~S" why x))))
+               (style-warn "~A is not a symbol: ~S" why x))))
       (dolist (i required)
         (need-symbol i "Required argument"))
       (dolist (i optional)
@@ -201,7 +199,7 @@
              (declare (ignore init-form supplied-p))
              (need-symbol var "&OPTIONAL parameter name")))
           (t
-           (format t "&OPTIONAL parameter is not a symbol or cons: ~S"
+           (style-warn "&OPTIONAL parameter is not a symbol or cons: ~S"
                            i))))
       (when restp
         (need-symbol rest "&REST argument"))
@@ -218,7 +216,7 @@
                      (need-symbol var "&KEY parameter name"))
                    (need-symbol var-or-kv "&KEY parameter name"))))
             (t
-             (format t "&KEY parameter is not a symbol or cons: ~S"
+             (style-warn "&KEY parameter is not a symbol or cons: ~S"
                              i))))))
     ;; Voila.
     (values required optional restp rest keyp keys allowp auxp aux

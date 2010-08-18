@@ -58,3 +58,12 @@ paren-script becomes parenScript, *some-global* becomes SOMEGLOBAL."
   (cond ((null x) acc)
         ((atom x) (cons x acc))
         (t (flatten (car x) (flatten (cdr x) acc)))))
+
+
+(define-condition simple-style-warning (simple-condition style-warning)
+  ())
+
+(defun style-warn (format-control &rest format-args)
+  (warn 'simple-style-warning
+        :format-control format-control
+        :format-arguments format-args))
