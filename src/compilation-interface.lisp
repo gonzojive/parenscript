@@ -55,16 +55,29 @@ Body is evaluated."
                 ,@(let ((*js-string-delimiter* string-delimiter))
                     (parenscript-print (compile-statement form) nil))))
 
-(defvar *ps-read-function* #'read)
+(defvar *ps-read-function* #'read
+  "This should be a function that takes the same inputs and returns the same
+outputs as the common lisp read function.  We declare it as a variable to allow
+a user-supplied reader instead of the default lisp reader.")
 
 
 (defun ps-compile-stream (stream)
+  "Compiles a character stream of Parenscript code to a Javascript string."
   (let ((*ps-compilation-level* :toplevel)
-	(eof '#:eof))
-    (ps* (cons 'progn
-               (loop for form = (funcall *ps-read-function* stream nil eof)
-                     until (eq form eof)
-                     collect form)))))
+        (*package* *package*)
+        (end-read-form '#:unique))
+    (flet ((read-form () (funcall *ps-read-function* stream nil end-read-form)))
+      (let* ((js-string
+              ;; cons up the forms, compiling as we go, and print the result
+              (do ((form (read-form) (read-form))
+                   (compiled-forms nil))
+                  ((eql form end-read-form)
+                     (with-output-to-string (*psw-stream*)
+                       (loop :for compiled-form :in (nreverse compiled-forms)
+                             :do (parenscript-print compiled-form t)
+                             :do (format *psw-stream* ";~%"))))
+                (push (compile-statement form) compiled-forms))))
+        js-string))))
 
 (defun ps-compile-file (source-file)
   "Compiles the given Parenscript source file and returns a Javascript string."
