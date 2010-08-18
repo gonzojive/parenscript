@@ -29,9 +29,13 @@
 
 (defun symbol-to-js-string (symbol &optional (mangle-symbol-name? t))
   (let* ((symbol-name (symbol-name (maybe-obfuscate-symbol symbol)))
-         (identifier (if mangle-symbol-name?
-                         (encode-js-identifier symbol-name)
-                         symbol-name)))
+         (identifier (cond
+                       ((keywordp symbol)
+                        (string-downcase symbol-name))
+                       (mangle-symbol-name?
+                        (encode-js-identifier symbol-name))
+                       (t
+                        symbol-name))))
     (aif (ps-package-prefix (symbol-package symbol))
          (concatenate 'string it identifier)
          identifier)))
