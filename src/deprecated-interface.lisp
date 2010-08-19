@@ -70,22 +70,23 @@ is output to the OUTPUT-STREAM stream."
   `(progn (defmacro ,name ,args ,@body)
           (import-macros-from-lisp ',name)))
 
-(defmacro defpsmacro-deprecated (old new)
+(defmacro defpsmacro-deprecated (old new &key muffle)
   `(defpsmacro ,old (&rest args)
-     (warn-deprecated ',old ',new)
+     ,(unless muffle
+        `(warn-deprecated ',old ',new))
      (cons ',new args)))
 
-(defpsmacro-deprecated slot-value getprop)
-(defpsmacro-deprecated === eql)
-(defpsmacro-deprecated == equal)
+(defpsmacro-deprecated slot-value getprop :muffle t)
+(defpsmacro-deprecated === eql :muffle t)
+(defpsmacro-deprecated == equal :muffle t)
 (defpsmacro-deprecated % rem)
 
 (defpsmacro !== (&rest args)
-  (warn-deprecated '!==)
+;  (warn-deprecated '!==)
   `(not (eql ,@args)))
 
 (defpsmacro != (&rest args)
-  (warn-deprecated '!=)
+ ; (warn-deprecated '!=)
   `(not (equal ,@args)))
 
 (defpsmacro labeled-for (label init-forms cond-forms step-forms &rest body)

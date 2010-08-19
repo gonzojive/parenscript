@@ -130,8 +130,8 @@ TODO: specify what exactly expressionizing does to the evironment."
                               (cons cvalue cbody))))))
           (try
            `(try ,(expressionize (second form) func)
-                 ,@(let ((catch (cdr (assoc :catch (cdr form))))
-                         (finally (assoc :finally (cdr form))))
+                 ,@(let ((catch (cdr (assoc :catch (cddr form))))
+                         (finally (assoc :finally (cddr form))))
                         (list (when catch
                                 `(:catch ,(car catch)
                                    ,@(butlast (cdr catch))
@@ -407,10 +407,8 @@ the given lambda-list and body."
   ;; * standard variables are the mapped directly into the js-lambda
   ;;   list
 
-  ;; * optional variables' variable names are mapped directly into the
-  ;;   lambda list, and for each optional variable with name v,
-  ;;   default value d, and supplied-p parameter s, a form is produced
-  ;;   (defaultf v d s)
+  ;; * standard and optional variables are the mapped directly into
+  ;;   the js-lambda list
 
   ;; * keyword variables are not included in the js-lambda list, but
   ;;   instead are obtained from the magic js ARGUMENTS
@@ -418,6 +416,8 @@ the given lambda-list and body."
   ;;   prepended to the body of the function. Defaults and supplied-p
   ;;   are handled using the same mechanism as with optional vars.
   (declare (ignore name)) ;; might want to factor name in when renaming variables
+
+  ;;   prepended to the body of the function.
   (multiple-value-bind (requireds optionals rest? rest keys? keys allow? aux?
                                   aux more? more-context more-count key-object)
       (parse-lambda-list lambda-list)
@@ -430,25 +430,31 @@ the given lambda-list and body."
                                (mapcar #'parse-optional-spec optionals))))
            (opt-forms
             (mapcar (lambda (opt-spec)
-                      (multiple-value-bind (var val suppl)
+                      (multiple-value-bind (name value suppl)
                           (parse-optional-spec opt-spec)
-                        `(defaultf ,var ,val ,suppl)))
+                        (if suppl
+                            `(progn
+                               (var ,suppl (not (eql ,name undefined)))
+                               (when (not ,suppl) (setf ,name ,value)))
+                            `(when (eql ,name undefined)
+                               (setf ,name ,value)))))
                     optionals))
            (key-forms
             (when (and keys? (or keys key-object))
               (if (< *js-target-version* 1.6)
                   (with-ps-gensyms (n)
-                    (let ((decls nil)
-                          (assigns nil)
-                          (defaults nil))
+                    (let ((decls ())
+                          (assigns ())
+                          (defaults ()))
                       (mapc
                        (lambda (k)
-                         (multiple-value-bind (var init-form
-                                                   keyword-str suppl)
+                         (multiple-value-bind (var init-form keyword-str suppl)
                              (parse-key-spec k)
-                           (push `(var ,var)
-                                 decls)
-                           (push `(,keyword-str (setf ,var (aref arguments (1+ ,n))))
+                           (push `(var ,var ,init-form) decls)
+                           (when suppl (push `(var ,suppl nil) decls))
+                           (push `(,keyword-str
+                                   (setf ,var (aref arguments (1+ ,n))
+                                         ,@(when suppl `(,suppl t))))
                                  assigns)
                            (push (list 'defaultf var init-form suppl)
                                  defaults)))

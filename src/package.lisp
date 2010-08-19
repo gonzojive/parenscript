@@ -1,6 +1,6 @@
 (in-package #:cl)
 
-(provide :parenscript)
+(pushnew :parenscript *features*)
 
 (defpackage #:parenscript
   (:use #:cl #:anaphora)
@@ -132,6 +132,10 @@
    #:if
    #:when
    #:unless
+
+   ;; block/return-from
+   #:block
+   #:return-from
 
    ;; single argument statements
    #:return

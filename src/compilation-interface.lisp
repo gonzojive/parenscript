@@ -33,6 +33,16 @@ Body is evaluated."
     (unless *parenscript-stream*
       (get-output-stream-string *psw-stream*))))
 
+(defun ps** (form &key expressionp)
+  "Stupidly named Compiles BODY to a JavaScript string.
+Body is evaluated."
+  (let ((*psw-stream* (or *parenscript-stream*
+                          (make-string-output-stream))))
+    (parenscript-print (funcall (if expressionp 'compile-expression 'compile-statement)
+                                form) t)
+    (unless *parenscript-stream*
+      (get-output-stream-string *psw-stream*))))
+
 (defmacro ps-doc (&body body)
   "Expands Parenscript forms in a clean environment."
   (let ((*ps-gensym-counter* 0)
