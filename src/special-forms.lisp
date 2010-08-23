@@ -13,36 +13,36 @@
                           (cons ',js-primitive
                                 (mapcar #'compile-expression args)))))))
   (define-trivial-special-forms
-    +          js:+
-    -          js:-
-    *          js:*
-    /          js:/
-    rem        js:%
-    and        js:&&
-    or         js:\|\|
+    +          ps-js:+
+    -          ps-js:-
+    *          ps-js:*
+    /          ps-js:/
+    rem        ps-js:%
+    and        ps-js:&&
+    or         ps-js:\|\|
 
-    logand     js:&
-    logior     js:\|
-    logxor     js:^
-    lognot     js:~
+    logand     ps-js:&
+    logior     ps-js:\|
+    logxor     ps-js:^
+    lognot     ps-js:~
     ;; todo: ash for shifts
 
-    throw      js:throw
-    array      js:array
-    aref       js:aref
+    throw      ps-js:throw
+    array      ps-js:array
+    aref       ps-js:aref
 
-    instanceof js:instanceof
-    typeof     js:typeof
-    new        js:new
-    delete     js:delete
-    in         js:in ;; maybe rename to slot-boundp?
-    break      js:break
-    funcall    js:funcall
+    instanceof ps-js:instanceof
+    typeof     ps-js:typeof
+    new        ps-js:new
+    delete     ps-js:delete
+    in         ps-js:in ;; maybe rename to slot-boundp?
+    break      ps-js:break
+    funcall    ps-js:funcall
     ))
 
 (define-ps-special-form - (&rest args)
   (let ((args (mapcar #'compile-expression args)))
-    (cons (if (cdr args) 'js:- 'js:negate) args)))
+    (cons (if (cdr args) 'ps-js:- 'ps-js:negate) args)))
 
 (defun fix-nary-comparison (operator objects)
   (let* ((tmp-var-forms (butlast (cdr objects)))
@@ -66,17 +66,17 @@
                               (cons ',js-primitive
                                     (mapcar #'compile-expression objects))))))))
   (define-nary-comparison-forms
-    <     js:<
-    >     js:>
-    <=    js:<=
-    >=    js:>=
-    eql   js:===
-    equal js:==))
+    <     ps-js:<
+    >     ps-js:>
+    <=    ps-js:<=
+    >=    ps-js:>=
+    eql   ps-js:===
+    equal ps-js:==))
 
 (define-ps-special-form /= (a b)
   ;; for n>2, /= is finding duplicates in an array of numbers (ie -
   ;; nontrivial runtime algorithm), so we restrict it to binary in PS
-  `(js:!== ,(compile-expression a) ,(compile-expression b)))
+  `(ps-js:!== ,(compile-expression a) ,(compile-expression b)))
 
 (define-ps-special-form quote (x)
   (flet ((quote% (expr) (when expr `',expr)))
@@ -163,38 +163,38 @@ TODO: specify what exactly expressionizing does to the evironment."
         (funcall func form))))
 
 (define-ps-special-form return-exp (&optional form)
-  `(js:return ,(compile-expression form)))
+  `(ps-js:return ,(compile-expression form)))
 
 (define-ps-special-form incf (x &optional (delta 1))
   (let ((delta (ps-macroexpand delta)))
     (if (eql delta 1)
-        `(js:++ ,(compile-expression x))
-        `(js:+= ,(compile-expression x) ,(compile-expression delta)))))
+        `(ps-js:++ ,(compile-expression x))
+        `(ps-js:+= ,(compile-expression x) ,(compile-expression delta)))))
 
 (define-ps-special-form decf (x &optional (delta 1))
   (let ((delta (ps-macroexpand delta)))
     (if (eql delta 1)
-        `(js:-- ,(compile-expression x))
-        `(js:-= ,(compile-expression x) ,(compile-expression delta)))))
+        `(ps-js:-- ,(compile-expression x))
+        `(ps-js:-= ,(compile-expression x) ,(compile-expression delta)))))
 
 (let ((inverses (mapcan (lambda (x)
                           (list x (reverse x)))
-                        '((js:=== js:!==)
-                          (js:== js:!=)
-                          (js:< js:>=)
-                          (js:> js:<=)))))
+                        '((ps-js:=== ps-js:!==)
+                          (ps-js:== ps-js:!=)
+                          (ps-js:< ps-js:>=)
+                          (ps-js:> ps-js:<=)))))
   (define-ps-special-form not (x)
     (let ((form (compile-expression x)))
-      (acond ((and (listp form) (eq (car form) 'js:!))
+      (acond ((and (listp form) (eq (car form) 'ps-js:!))
               (second form))
              ((and (listp form) (cadr (assoc (car form) inverses)))
               `(,it ,@(cdr form)))
-             (t `(js:! ,form))))))
+             (t `(ps-js:! ,form))))))
 
 (defun flatten-blocks (body)
   (when body
     (if (and (listp (car body))
-             (eq 'js:block (caar body)))
+             (eq 'ps-js:block (caar body)))
         (append (cdr (car body)) (flatten-blocks (cdr body)))
         (cons (car body) (flatten-blocks (cdr body))))))
 
@@ -202,7 +202,7 @@ TODO: specify what exactly expressionizing does to the evironment."
   (let ((body (mapcar #'ps-macroexpand body)))
     (if (and compile-expression? (not (cdr body)))
         (compile-expression (car body))
-        `(,(if compile-expression? 'js:|,| 'js:block)
+        `(,(if compile-expression? 'ps-js:|,| 'ps-js:block)
            ,@(let* ((block (flatten-blocks
                             (remove nil (mapcar #'ps-compile body))))
                     (last (last block)))
@@ -218,7 +218,7 @@ TODO: specify what exactly expressionizing does to the evironment."
 (define-ps-special-form cond (&rest clauses)
   (if compile-expression?
       (make-cond-clauses-into-nested-ifs clauses)
-      `(js:if ,(compile-expression (caar clauses))
+      `(ps-js:if ,(compile-expression (caar clauses))
               ,(compile-statement `(progn ,@(cdar clauses)))
               ,@(loop for (test . body) in (cdr clauses) appending
                      (if (eq t test)
@@ -232,29 +232,29 @@ TODO: specify what exactly expressionizing does to the evironment."
           (car clauses)
         (if (eq t test)
             (compile-expression `(progn ,@body))
-            `(js:? ,(compile-expression test)
+            `(ps-js:? ,(compile-expression test)
                    ,(compile-expression `(progn ,@body))
                    ,(make-cond-clauses-into-nested-ifs (cdr clauses)))))
       (compile-expression nil)))
 
 (define-ps-special-form if (test then &optional else)
   (if compile-expression?
-      `(js:? ,(compile-expression test)
+      `(ps-js:? ,(compile-expression test)
              ,(compile-expression then)
              ,(compile-expression else))
-      `(js:if ,(compile-expression test)
+      `(ps-js:if ,(compile-expression test)
               ,(compile-statement `(progn ,then))
               ,@(when else `(:else ,(compile-statement `(progn ,else)))))))
 
 (define-ps-special-form switch (test-expr &rest clauses)
-  `(js:switch ,(compile-expression test-expr)
+  `(ps-js:switch ,(compile-expression test-expr)
      ,@(loop for (val . body) in clauses collect
             (cons (if (eq val 'default)
-                      'js:default
+                      'ps-js:default
                       (compile-expression val))
                   (mapcan (lambda (x)
                             (let ((exp (compile-statement x)))
-                              (if (and (listp exp) (eq 'js:block (car exp)))
+                              (if (and (listp exp) (eq 'ps-js:block (car exp)))
                                   (cdr exp)
                                   (list exp))))
                           body)))))
@@ -292,7 +292,7 @@ do not call EXPRESSIONIZE at all and instead use forms verbatim."
            (compiled-body (compile-statement (maybe-expressionize `(progn ,@body)))))
 
       (if (find :nested (cddr block-spec))
-          `(js:try ,compiled-body
+          `(ps-js:try ,compiled-body
                    :catch (err
                            ,(compile-statement
                              (maybe-expressionize
@@ -343,13 +343,13 @@ do not call EXPRESSIONIZE at all and instead use forms verbatim."
                       ,@(mapcar (lambda (var) `(var ,var))
                                 (remove-duplicates
                                  *enclosing-lexical-block-declarations*))))))
-            `(js:block ,@(cdr var-decls) ,@(cdr body))))))
+            `(ps-js:block ,@(cdr var-decls) ,@(cdr body))))))
 
 (define-ps-special-form %js-lambda (args &rest body)
-  `(js:lambda ,@(compile-function-definition args body)))
+  `(ps-js:lambda ,@(compile-function-definition args body)))
 
 (define-ps-special-form %js-defun (name args &rest body)
-  `(js:defun ,name ,@(compile-function-definition args body)))
+  `(ps-js:defun ,name ,@(compile-function-definition args body)))
 
 (defun parse-function-body (body)
   (let* ((docstring (when (stringp (first body))
@@ -469,7 +469,11 @@ the given lambda-list and body."
 				  `(setf (aref ,key-object (aref arguments ,n))
 					 (aref arguments (+ 1 ,n)))))
 			     ,@(when keys
-				 (list `(case (aref arguments ,n) ,@assigns)))))
+				 (list `(case (aref arguments ,n)
+                                          ,@assigns
+                                          #+nil
+                                          (default (psos:pslog (:error "Invalid keyword argument")
+                                                               (aref arguments ,n))))))))
                         ,@defaults)))
 		  (progn
 		    (mapcar (lambda (k)
@@ -527,7 +531,7 @@ the given lambda-list and body."
           (append fn-renames *ps-enclosing-lexicals*))
          (*ps-local-function-names*
           (append fn-renames *ps-local-function-names*)))
-    `(,(if compile-expression? 'js:|,| 'js:block)
+    `(,(if compile-expression? 'ps-js:|,| 'ps-js:block)
        ,@fn-defs
        ,@(flatten-blocks (mapcar #'ps-compile body)))))
 
@@ -590,7 +594,7 @@ the given lambda-list and body."
 (define-ps-special-form create (&rest arrows)
   ;; fixme is this the right behavior?
   ;; new version:
- `(js:object
+ `(ps-js:object
    ,@(loop for (key val-expr) on arrows by #'cddr collecting
           (progn
             (when (and (consp key) (eql 'quote (first key)) (symbolp (second key)))
@@ -602,14 +606,14 @@ the given lambda-list and body."
             (cons (aif (and (symbolp key) (ps-reserved-symbol? key)) it key)
                   (compile-expression val-expr))))))
   ;; old version:
-  ;; `(js:object ,@(loop for (key-expr val-expr) on arrows by #'cddr collecting
+  ;; `(ps-js:object ,@(loop for (key-expr val-expr) on arrows by #'cddr collecting
   ;;                    (let ((key (compile-parenscript-form (ps-macroexpand key-expr) :expecting :expression)))
   ;;                      (when (keywordp key)
-  ;;                        (setf key `(js:variable ,key)))
+  ;;                        (setf key `(ps-js:variable ,key)))
   ;;                      (assert (or (stringp key)
   ;;                                  (numberp key)
   ;;                                  (and (listp key)
-  ;;                                       (or (eq 'js:variable (car key))
+  ;;                                       (or (eq 'ps-js:variable (car key))
   ;;                                           (eq 'quote (car key)))))
   ;;                              ()
   ;;                              "Slot key ~s is not one of js-variable, keyword, string or number." key)
@@ -625,26 +629,26 @@ the given lambda-list and body."
              (symbolp (second expanded-slot)))
         (aif (or  (ps-reserved-symbol? (second expanded-slot))
                   (and (keywordp (second expanded-slot)) (second expanded-slot)))
-          `(js:aref ,obj ,it)
-          `(js:getprop ,obj ,(second expanded-slot)))
-        `(js:aref ,obj ,(compile-expression slot)))))
+          `(ps-js:aref ,obj ,it)
+          `(ps-js:getprop ,obj ,(second expanded-slot)))
+        `(ps-js:aref ,obj ,(compile-expression slot)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; assignment and binding
 
 (defun assignment-op (op)
-  (getf '(js:+   js:+=
-          js:~   js:~=
-          js:&   js:&=
-          js:\|  js:\|=
-          js:-   js:-=
-          js:*   js:*=
-          js:%   js:%=
-          js:>>  js:>>=
-          js:^   js:^=
-          js:<<  js:<<=
-          js:>>> js:>>>=
-          js:/   js:/=)
+  (getf '(ps-js:+   ps-js:+=
+          ps-js:~   ps-js:~=
+          ps-js:&   ps-js:&=
+          ps-js:\|  ps-js:\|=
+          ps-js:-   ps-js:-=
+          ps-js:*   ps-js:*=
+          ps-js:%   ps-js:%=
+          ps-js:>>  ps-js:>>=
+          ps-js:^   ps-js:^=
+          ps-js:<<  ps-js:<<=
+          ps-js:>>> ps-js:>>>=
+          ps-js:/   ps-js:/=)
         op))
 
 (define-ps-special-form ps-assign (lhs rhs)
@@ -657,7 +661,7 @@ the given lambda-list and body."
          (list it lhs (if (fourth rhs)
                           (cons (first rhs) (cddr rhs))
                           (third rhs)))
-         (list 'js:= lhs rhs))))
+         (list 'ps-js:= lhs rhs))))
 
 (define-ps-special-form var (name &optional
                                   (value (values) value-provided?)
@@ -668,7 +672,7 @@ the given lambda-list and body."
         (progn (push name *enclosing-lexical-block-declarations*)
                (when value-provided?
                  (compile-expression `(setf ,name ,value))))
-        `(js:var ,name
+        `(ps-js:var ,name
                  ,@(when value-provided?
                          (list (compile-expression value)))))))
 
@@ -743,31 +747,31 @@ the given lambda-list and body."
           init-forms))
 
 (define-ps-special-form for (init-forms cond-forms step-forms &body body)
-  `(js:for ,(make-for-vars/inits init-forms)
+  `(ps-js:for ,(make-for-vars/inits init-forms)
      ,(mapcar #'compile-expression cond-forms)
      ,(mapcar #'compile-expression step-forms)
      ,(compile-statement `(progn ,@body))))
 
 (define-ps-special-form continue (&optional label)
-  `(js:continue ,label))
+  `(ps-js:continue ,label))
 
 (define-ps-special-form for-in ((var object) &rest body)
-  `(js:for-in ,(compile-expression var)
+  `(ps-js:for-in ,(compile-expression var)
               ,(compile-expression object)
               ,(compile-statement `(progn ,@body))))
 
 (define-ps-special-form while (test &rest body)
-  `(js:while ,(compile-expression test)
+  `(ps-js:while ,(compile-expression test)
      ,(compile-statement `(progn ,@body))))
 
 (define-ps-special-form label (label &rest body)
-  `(js:label ,label ,(compile-statement `(progn ,@body))))
+  `(ps-js:label ,label ,(compile-statement `(progn ,@body))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; misc
 
 (define-ps-special-form with (expression &rest body)
-  `(js:with ,(compile-expression expression)
+  `(ps-js:with ,(compile-expression expression)
      ,(compile-statement `(progn ,@body))))
 
 (define-ps-special-form try (form &rest clauses)
@@ -776,13 +780,13 @@ the given lambda-list and body."
     (assert (not (cdar catch)) nil "Sorry, currently only simple catch forms are supported.")
     (assert (or catch finally) ()
             "Try form should have either a catch or a finally clause or both.")
-    `(js:try ,(compile-statement `(progn ,form))
+    `(ps-js:try ,(compile-statement `(progn ,form))
              :catch ,(when catch (list (caar catch)
                                        (compile-statement `(progn ,@(cdr catch)))))
              :finally ,(when finally (compile-statement `(progn ,@finally))))))
 
 (define-ps-special-form regex (regex)
-  `(js:regex ,(string regex)))
+  `(ps-js:regex ,(string regex)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; evalutation
@@ -791,7 +795,7 @@ the given lambda-list and body."
   ;; (ps (foo (lisp bar))) is like (ps* `(foo ,bar))
   ;; When called from inside of ps*, lisp-form has access to the
   ;; dynamic environment only, analogoues to eval.
-  `(js:escape
+  `(ps-js:escape
     (with-output-to-string (*psw-stream*)
       (let ((compile-expression? ,compile-expression?))
         (parenscript-print (ps-compile ,lisp-form) t)))))

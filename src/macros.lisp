@@ -1,7 +1,7 @@
 (in-package #:parenscript)
 
-(define-ps-symbol-macro f js:f)
-(define-ps-symbol-macro false js:f)
+(define-ps-symbol-macro f ps-js:f)
+(define-ps-symbol-macro false ps-js:f)
 
 (macrolet ((define-trivial-mappings (&rest mappings)
              `(progn

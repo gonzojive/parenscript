@@ -288,7 +288,7 @@
    ))
 
 
-(defpackage #:js
+(defpackage #:ps-js
   (:shadowing-import-from #:cl
    #:+
    #:-

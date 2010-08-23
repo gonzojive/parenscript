@@ -251,7 +251,7 @@ form, FORM, returns the new value for *ps-compilation-level*."
                 (compile-funcall-form form))))))))
 
 (defun compile-funcall-form (form)
-  `(js:funcall
+  `(ps-js:funcall
     ,(if (symbolp (car form))
          (maybe-rename-local-function (car form))
          (compile-expression (car form)))
